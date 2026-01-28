@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Clipper</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <!-- SVG Icon Sprite -->
+  <div style="display: none;">
+    <svg xmlns="http://www.w3.org/2000/svg">
+      <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </symbol>
+      <symbol id="icon-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <polyline points="12 5 19 12 12 19"></polyline>
+      </symbol>
+      <symbol id="icon-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </symbol>
+      <symbol id="icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </symbol>
+      <symbol id="icon-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+      </symbol>
+      <symbol id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+      </symbol>
+      <symbol id="icon-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+      </symbol>
+    </svg>
+  </div>
+
+  <div id="app">
+    <!-- Menu Bar -->
+    <nav class="menu-bar">
+      <div class="menu-left">
+        <img src="icons/icon32.png" alt="" class="menu-logo">
+        <span class="menu-title">Knowledge Clipper</span>
+      </div>
+      <button id="back-button" class="menu-back hidden" title="Back to Library">
+        <svg class="icon icon-sm"><use href="#icon-arrow-left"></use></svg>
+        <span>Back</span>
+      </button>
+    </nav>
+
+    <!-- Loading State -->
+    <div id="loading" class="loading hidden">
+      <div class="skeleton-screen">
+        <div class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-circle"></div>
+            <div class="skeleton-lines">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line shorter"></div>
+            </div>
+          </div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line medium"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-circle"></div>
+            <div class="skeleton-lines">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line shorter"></div>
+            </div>
+          </div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line medium"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-circle"></div>
+            <div class="skeleton-lines">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line shorter"></div>
+            </div>
+          </div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line medium"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capture Mode -->
+    <div id="capture-mode" class="capture-mode hidden">
+      <div class="source-bar">
+        <img id="capture-favicon" class="favicon" src="" alt="">
+        <div class="source-info">
+          <div id="capture-site-name" class="site-name"></div>
+          <div id="capture-url" class="url"></div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <label class="section-label">Selected Text</label>
+        <div id="capture-text-preview" class="text-preview"></div>
+      </div>
+
+      <div class="input-section">
+        <label for="capture-notes" class="section-label">Your Notes</label>
+        <textarea
+          id="capture-notes"
+          class="notes-input"
+          placeholder="Add your thoughts, context, or questions..."
+          rows="4"
+        ></textarea>
+      </div>
+
+      <div class="input-section">
+        <label for="capture-tags" class="section-label">Tags</label>
+        <input
+          id="capture-tags"
+          type="text"
+          class="tags-input"
+          placeholder="Separate tags with commas (e.g., research, ideas)"
+        >
+        <div class="input-hint">Press Cmd+Enter to save</div>
+      </div>
+
+      <button id="save-button" class="save-button">
+        <span class="button-text">Save Clip</span>
+        <svg class="button-icon icon icon-sm"><use href="#icon-arrow-right"></use></svg>
+      </button>
+    </div>
+
+    <!-- Library Mode -->
+    <div id="library-mode" class="library-mode hidden">
+      <!-- ARIA Live Region for Screen Readers -->
+      <div id="filter-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+      <div class="library-header">
+        <!-- Unified Filter Component -->
+        <div class="unified-filter">
+          <div class="filter-input-wrapper">
+            <svg class="filter-icon icon icon-sm"><use href="#icon-search"></use></svg>
+            <input
+              id="filter-input"
+              type="text"
+              class="filter-input"
+              placeholder="Search, filter, or sort..."
+              autocomplete="off"
+              aria-label="Search and filter clips"
+              aria-expanded="false"
+            >
+            <div id="search-loading" class="search-loading hidden">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+
+          <!-- Filter Dropdown (hidden by default) -->
+          <div id="filter-dropdown" class="filter-dropdown hidden" role="menu">
+            <div class="filter-section">
+              <div class="filter-section-label">Sort By</div>
+              <div class="filter-option" data-type="sort" data-value="newest" role="menuitem" tabindex="0">
+                <span class="filter-option-icon">↓</span>
+                Newest First
+              </div>
+              <div class="filter-option" data-type="sort" data-value="oldest" role="menuitem" tabindex="0">
+                <span class="filter-option-icon">↑</span>
+                Oldest First
+              </div>
+            </div>
+
+            <div class="filter-section" id="tags-filter-section">
+              <div class="filter-section-label">Filter by Tag</div>
+              <div id="filter-tags-list" role="menu">
+                <!-- Tags populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Filters Display -->
+          <div id="active-filters" class="active-filters hidden">
+            <span class="active-filters-label">Active:</span>
+            <div id="active-filters-chips" class="active-filters-chips">
+              <!-- Filter chips populated dynamically -->
+            </div>
+            <button id="clear-all-filters" class="clear-all-button" title="Clear all filters">
+              Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="notes-list" class="notes-list">
+        <!-- Empty state -->
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">
+            <svg class="icon icon-xxl"><use href="#icon-file-text"></use></svg>
+          </div>
+          <h2>No clips yet</h2>
+          <p>Highlight text on any webpage and right-click to start capturing knowledge.</p>
+        </div>
+
+        <!-- Search empty state -->
+        <div id="search-empty-state" class="empty-state hidden">
+          <div class="empty-icon">
+            <svg class="icon icon-xxl"><use href="#icon-search"></use></svg>
+          </div>
+          <h2>No results found</h2>
+          <p id="search-empty-query"></p>
+        </div>
+
+        <!-- Notes will be rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden template for note cards -->
+  <template id="note-card-template">
+    <div class="note-card" data-note-id="">
+      <div class="note-card-header">
+        <div class="note-source">
+          <img class="note-favicon" src="" alt="">
+          <div class="note-source-info">
+            <div class="note-site-name"></div>
+            <div class="note-date"></div>
+          </div>
+        </div>
+        <button class="delete-button" title="Delete">
+          <svg class="icon icon-sm"><use href="#icon-trash"></use></svg>
+        </button>
+      </div>
+
+      <div class="note-text-preview"></div>
+
+      <div class="note-user-note"></div>
+
+      <div class="note-tags"></div>
+
+      <div class="note-expanded-content hidden">
+        <div class="note-text-full"></div>
+        <div class="note-metadata">
+          <a class="note-link" href="" target="_blank">
+            <svg class="icon icon-xs"><use href="#icon-link"></use></svg>
+            <span>View Source</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="dexie.js"></script>
+  <script src="database.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

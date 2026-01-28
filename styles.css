@@ -1,0 +1,59 @@
+/* Linear-Inspired Design System */
+:root {
+  /* Primary Brand Colors - Purple/Violet theme */
+  --color-primary: #5E6AD2;
+  --color-primary-hover: #4E5BCC;
+  --color-primary-active: #3E4BC2;
+  --color-primary-light: #E5E7FF;
+  --color-primary-subtle: #F5F6FF;
+
+  /* Surfaces & Backgrounds */
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F7F8F9;
+  --color-surface-hover: #F0F1F3;
+  --color-surface-accent: #FAFBFC;
+  --color-surface-elevated: #FFFFFF;
+
+  /* Text Hierarchy */
+  --color-text-primary: #16171A;
+  --color-text-secondary: #68707C;
+  --color-text-tertiary: #9BA1A8;
+  --color-text-disabled: #C1C6CC;
+  --color-text-inverse: #FFFFFF;
+
+  /* Borders & Dividers */
+  --color-border: #E6E8EB;
+  --color-border-medium: #D3D6DB;
+  --color-border-strong: #B4B9C2;
+
+  /* Interactive States */
+  --color-action: #5E6AD2;
+  --color-action-hover: #4E5BCC;
+  --color-action-active: #3E4BC2;
+
+  /* Semantic Colors */
+  --color-success: #00BC6F;
+  --color-success-bg: #E6FAF3;
+  --color-warning: #FFAB00;
+  --color-warning-bg: #FFF5E6;
+  --color-error: #FF5247;
+  --color-error-bg: #FFE8E6;
+  --color-info: #5E6AD2;
+  --color-info-bg: #E5E7FF;
+
+  /* Focus States */
+  --color-focus: #5E6AD2;
+  --focus-ring: 0 0 0 3px rgba(94, 106, 210, 0.12);
+  --focus-ring-error: 0 0 0 3px rgba(255, 82, 71, 0.12);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(22, 23, 26, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(22, 23, 26, 0.08), 0 2px 4px -2px rgba(22, 23, 26, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(22, 23, 26, 0.08), 0 4px 6px -4px rgba(22, 23, 26, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(22, 23, 26, 0.08), 0 8px 10px -6px rgba(22, 23, 26, 0.05);
+
+  /* Transitions */
+  --transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}

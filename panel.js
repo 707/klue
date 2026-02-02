@@ -1107,6 +1107,7 @@ function setupLibraryEventListeners() {
 
     filterAndRenderNotes();
     renderActiveFilters();
+    updateFilterDropdownActiveStates();
     saveFilterState();
   });
 
@@ -1140,6 +1141,7 @@ function setupLibraryEventListeners() {
     filterInput.value = '';
     filterAndRenderNotes();
     renderActiveFilters();
+    updateFilterDropdownActiveStates();
     saveFilterState();
   });
 
@@ -1164,6 +1166,7 @@ function setupLibraryEventListeners() {
         filterState.readLater = false; // [NOT-18] Also clear Read Later filter
         filterAndRenderNotes();
         renderActiveFilters();
+        updateFilterDropdownActiveStates();
         saveFilterState();
       }
     }
@@ -1207,6 +1210,51 @@ function populateFilterDropdown() {
       tagsListEl.appendChild(option);
     });
   }
+
+  // [NOT-26] Update active state for Read Later filter option
+  updateFilterDropdownActiveStates();
+}
+
+/**
+ * [NOT-26] Update the visual active state of filter options in the dropdown
+ * Highlights currently active filters (sort, read later, tags)
+ */
+function updateFilterDropdownActiveStates() {
+  const filterDropdown = document.getElementById('filter-dropdown');
+  if (!filterDropdown) return;
+
+  // Update Read Later filter option
+  const readLaterOption = filterDropdown.querySelector('[data-type="readLater"]');
+  if (readLaterOption) {
+    if (filterState.readLater) {
+      readLaterOption.classList.add('active');
+    } else {
+      readLaterOption.classList.remove('active');
+    }
+  }
+
+  // Update Sort options
+  const sortOptions = filterDropdown.querySelectorAll('[data-type="sort"]');
+  sortOptions.forEach(option => {
+    if (option.dataset.value === filterState.sort) {
+      option.classList.add('active');
+    } else {
+      option.classList.remove('active');
+    }
+  });
+
+  // Update Tag options
+  const tagOptions = filterDropdown.querySelectorAll('[data-type="tag"]');
+  tagOptions.forEach(option => {
+    const isActive = filterState.tags.some(
+      filterTag => filterTag.toLowerCase() === option.dataset.value.toLowerCase()
+    );
+    if (isActive) {
+      option.classList.add('active');
+    } else {
+      option.classList.remove('active');
+    }
+  });
 }
 
 function filterAndRenderNotes() {
@@ -1525,6 +1573,7 @@ function createNoteCard(note, index = 0) {
 
         filterAndRenderNotes();
         renderActiveFilters();
+        updateFilterDropdownActiveStates();
         saveFilterState();
       });
 

@@ -799,11 +799,17 @@ body {
   color: var(--color-text-secondary);
 }
 
-/* [NOT-26] Date appears inline next to source name */
+/* [NOT-26] Date appears inline next to source name with separator */
 .note-date {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
   white-space: nowrap;
+}
+
+.note-date::before {
+  content: '·';
+  margin: 0 var(--spacing-xs);
+  color: var(--color-text-tertiary);
 }
 
 /* [NOT-18] [NOT-26] Note Actions Container with button position management */

@@ -754,7 +754,7 @@ body {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   flex: 1;
   min-width: 0;
 }
@@ -808,7 +808,7 @@ body {
 
 .note-date::before {
   content: '·';
-  margin: 0 var(--spacing-xs);
+  margin: 0 6px;
   color: var(--color-text-tertiary);
 }
 

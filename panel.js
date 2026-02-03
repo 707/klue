@@ -719,31 +719,43 @@ async function handleCreateNote() {
       return;
     }
 
-    // Extract page metadata
+    // [NOT-27] Extract page metadata with explicit error handling
     console.log('📊 Extracting page metadata from:', url);
-    const metadataResults = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: extractPageMetadata
-    });
 
-    const metadata = metadataResults[0].result;
-    console.log('✅ Metadata extracted:', metadata);
+    try {
+      const metadataResults = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: extractPageMetadata
+      });
 
-    // Prepare clip data (bookmark mode - no text/html)
-    const clipData = {
-      html: '',
-      text: '',
-      url: url,
-      metadata: metadata,
-      timestamp: Date.now()
-    };
+      const metadata = metadataResults[0].result;
+      console.log('✅ Metadata extracted:', metadata);
 
-    // Render capture mode with page data
-    renderCaptureMode(clipData);
+      // Prepare clip data (bookmark mode - no text/html)
+      const clipData = {
+        html: '',
+        text: '',
+        url: url,
+        metadata: metadata,
+        timestamp: Date.now()
+      };
+
+      // Render capture mode with page data
+      renderCaptureMode(clipData);
+
+    } catch (scriptError) {
+      // [NOT-27] Handle executeScript failures on restricted pages
+      console.warn('⚠️  Script injection failed (likely restricted page):', scriptError.message);
+      console.log('📝 Falling back to blank note');
+
+      // Fallback to blank note
+      await chrome.storage.local.remove('pendingClipData');
+      renderCaptureMode({});
+    }
 
   } catch (error) {
-    console.error('❌ Error capturing page:', error);
-    // Fallback to blank note on error
+    console.error('❌ Unexpected error in handleCreateNote:', error);
+    // Fallback to blank note on any unexpected error
     await chrome.storage.local.remove('pendingClipData');
     renderCaptureMode({});
   }

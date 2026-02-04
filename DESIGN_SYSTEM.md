@@ -42,6 +42,9 @@ This document outlines the design system for the Knowledge Clipper Chrome extens
 - **YouTube**: `#FF0000` with background `#FFF5F5` and border `#FFE0E0`
 - **Twitter/X**: `#1DA1F2` with background `#F5F8FF` and border `#E0EEFF`
 
+### Opacity
+- **Disabled**: `0.5` (`--opacity-disabled`) - Used for disabled buttons and inputs
+
 ## Typography
 
 ### Font Family
@@ -317,8 +320,8 @@ All design tokens are defined as CSS custom properties in `styles.css`:
 ```
 
 ## Updates & Maintenance
-- Version: 1.11.0
-- Last Updated: 2026-02-03
+- Version: 1.12.0
+- Last Updated: 2026-02-04
 - Maintained by: Development Team
 
 ### Note List (Library)

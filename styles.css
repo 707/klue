@@ -30,6 +30,7 @@
   --color-action: #5E6AD2;
   --color-action-hover: #4E5BCC;
   --color-action-active: #3E4BC2;
+  --opacity-disabled: 0.5;
 
   /* Semantic Colors */
   --color-success: #00BC6F;

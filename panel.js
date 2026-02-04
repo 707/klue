@@ -1618,6 +1618,7 @@ async function handleSaveClip(clipData = {}) {
       },
       timestamp: Date.now(),
       readLater: false, // [NOT-18] Initialize Read Later flag
+      starred: false, // [NOT-35] Initialize starred flag for consistency
       images: currentImages // [NOT-33] Store images array (replaces legacy imageData)
     };
 
@@ -2612,10 +2613,10 @@ async function handleDeleteNote(noteId, button) {
   // Store original state for rollback
   const originalNotes = [...allNotes];
 
-  // Disable button to prevent rapid clicks
+  // [NOT-35] Disable button to prevent rapid clicks
+  // Opacity is handled by CSS :disabled state
   if (button) {
     button.disabled = true;
-    button.style.opacity = '0.5';
   }
 
   // [NOT-23] Find the card element and trigger exit animation
@@ -2662,7 +2663,6 @@ async function handleDeleteNote(noteId, button) {
     // Always re-enable button
     if (button) {
       button.disabled = false;
-      button.style.opacity = '';
     }
   }
 }
@@ -2688,10 +2688,10 @@ async function handleToggleReadLater(noteId, button) {
   // Store original state for rollback
   const originalState = note.readLater;
 
-  // Disable button to prevent rapid clicks
+  // [NOT-35] Disable button to prevent rapid clicks
+  // Opacity is handled by CSS :disabled state
   if (button) {
     button.disabled = true;
-    button.style.opacity = '0.5';
   }
 
   try {
@@ -2750,7 +2750,6 @@ async function handleToggleReadLater(noteId, button) {
     // Re-enable button
     if (button) {
       button.disabled = false;
-      button.style.opacity = '';
     }
   }
 }
@@ -2776,10 +2775,10 @@ async function handleToggleStar(noteId, button) {
   // Store original state for rollback
   const originalState = note.starred;
 
-  // Disable button to prevent rapid clicks
+  // [NOT-35] Disable button to prevent rapid clicks
+  // Opacity is handled by CSS :disabled state
   if (button) {
     button.disabled = true;
-    button.style.opacity = '0.5';
   }
 
   try {
@@ -2838,7 +2837,6 @@ async function handleToggleStar(noteId, button) {
     // Re-enable button
     if (button) {
       button.disabled = false;
-      button.style.opacity = '';
     }
   }
 }

@@ -2107,6 +2107,117 @@ input:focus-visible,
   color: white;
 }
 
+/* [NOT-40] Disabled state for AI action button */
+.ai-action-header.disabled,
+.ai-action-header:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ai-action-header.disabled:hover,
+.ai-action-header:disabled:hover {
+  background: var(--color-ai-surface);
+  color: inherit;
+  transform: none;
+}
+
+/* [NOT-40] Loading state for synthesis button */
+.ai-action-header.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* [NOT-40] Synthesis Output Container */
+.synthesis-output {
+  background: var(--color-surface);
+  border: 1px solid var(--color-ai-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  animation: enter-slide var(--duration-base) var(--ease-out-spring);
+}
+
+.synthesis-content {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+/* [NOT-40] Streaming cursor animation */
+.synthesis-content.streaming .streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--color-ai-primary);
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+/* [NOT-40] Markdown formatting in synthesis output */
+.synthesis-content p {
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.synthesis-content p:last-child {
+  margin-bottom: 0;
+}
+
+.synthesis-content strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.synthesis-content em {
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+.synthesis-content ul {
+  margin: var(--spacing-sm) 0;
+  padding-left: var(--spacing-lg);
+  list-style-type: disc;
+}
+
+.synthesis-content li {
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-text-primary);
+}
+
+.synthesis-content li:last-child {
+  margin-bottom: 0;
+}
+
+/* [NOT-40] Synthesis error state */
+.synthesis-error {
+  padding: var(--spacing-md);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+}
+
+.synthesis-error strong {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+}
+
+.synthesis-error p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
 /* [NOT-39] Compact Insight Card for Semantic Matches */
 .insight-card {
   background: var(--color-surface);

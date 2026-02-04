@@ -14,6 +14,9 @@ let previousMode = null; // [NOT-34] Track previous view for navigation after ca
 let allNotes = [];
 let filteredNotes = [];
 
+// [NOT-40] Gemini Nano availability state
+let geminiAvailable = false;
+
 /**
  * [NOT-20] Sanitize HTML content using native DOMParser
  * Only allows safe elements: text, links, and basic formatting
@@ -277,6 +280,10 @@ async function checkAndReindexIfNeeded() {
       if (allNotes.length > 0) {
         log(`📊 [NOT-38] Indexing ${allNotes.length} existing notes...`);
 
+        // [NOT-38] Open keep-alive port to prevent SW timeout during long re-indexing
+        const keepAlivePort = chrome.runtime.connect({ name: 'keepalive' });
+        log('🔌 [NOT-38] Keep-alive port opened for re-indexing');
+
         // Send all notes to background for indexing
         try {
           const response = await chrome.runtime.sendMessage({
@@ -293,6 +300,10 @@ async function checkAndReindexIfNeeded() {
           }
         } catch (error) {
           warn('⚠️  [NOT-38] Failed to send reindex request:', error);
+        } finally {
+          // Close keep-alive port
+          keepAlivePort.disconnect();
+          log('🔌 [NOT-38] Keep-alive port closed');
         }
       } else {
         log('📭 [NOT-38] No notes to index, marking as initialized');
@@ -320,17 +331,29 @@ async function reindexAllNotes() {
     const allNotes = await window.database.getAllNotes();
     console.log(`📊 [NOT-38] Re-indexing ${allNotes.length} notes...`);
 
-    const response = await chrome.runtime.sendMessage({
-      action: 'REINDEX_ALL',
-      allNotes: allNotes
-    });
+    // [NOT-38] Open keep-alive port to prevent SW timeout
+    const keepAlivePort = chrome.runtime.connect({ name: 'keepalive' });
+    console.log('🔌 [NOT-38] Keep-alive port opened for re-indexing');
 
-    if (response.success) {
-      console.log(`✅ [NOT-38] Re-index complete: ${response.indexedCount}/${allNotes.length} notes indexed`);
-      // Reset the initialized flag to force re-check
-      await chrome.storage.local.set({ vectorIndexInitialized: true });
-    } else {
-      console.error('❌ [NOT-38] Re-index failed:', response.error);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'REINDEX_ALL',
+        allNotes: allNotes
+      });
+
+      if (response.success) {
+        console.log(`✅ [NOT-38] Re-index complete: ${response.indexedCount}/${allNotes.length} notes indexed`);
+        // Reset the initialized flag to force re-check
+        await chrome.storage.local.set({ vectorIndexInitialized: true });
+      } else {
+        console.error('❌ [NOT-38] Re-index failed:', response.error);
+      }
+    } catch (error) {
+      console.error('❌ [NOT-38] Error during manual re-index:', error);
+    } finally {
+      // Close keep-alive port
+      keepAlivePort.disconnect();
+      console.log('🔌 [NOT-38] Keep-alive port closed');
     }
   } catch (error) {
     console.error('❌ [NOT-38] Error during manual re-index:', error);
@@ -395,28 +418,39 @@ async function checkContextualRecall() {
     semanticMatches = []; // Reset semantic matches
 
     try {
+      log(`🔍 [NOT-39] Requesting semantic search for: "${currentTitle}"`);
       const response = await chrome.runtime.sendMessage({
         action: 'SEARCH_NOTES',
         query: currentTitle,
         limit: 20 // Get more results to account for filtering
       });
 
-      if (response.success && response.results) {
+      if (response && response.success && response.results) {
         // [NOT-39] Get ignored connections for this context
         const ignoredNoteIds = await window.database.getIgnoredConnectionsForContext(currentUrl);
         const ignoredSet = new Set(ignoredNoteIds);
 
-        // Filter results: similarity > 0.75, not in exact matches, not ignored
+        const rawCount = response.results.length;
+
+        // Filter results: similarity > 0.2 (Orama hybrid scores are typically lower than pure cosine)
+        // Top results from semantic search are relevant even with lower scores
         semanticMatches = response.results
           .filter(result =>
-            result.similarity > 0.75 &&
+            result.similarity > 0.2 &&
             !exactNoteIds.has(result.note.id) &&
             !ignoredSet.has(result.note.id)
           )
           .slice(0, 5); // Limit to top 5 semantic matches
 
         semanticCount = semanticMatches.length;
-        log(`🔍 [NOT-39] Found ${semanticCount} semantic matches (${response.results.length} total, filtered)`);
+        log(`🔍 [NOT-39] Search complete. Raw: ${rawCount}, Filtered: ${semanticCount}. (Exact matches excluded: ${exactNoteIds.size})`);
+
+        // Log similarity scores for debugging
+        if (semanticMatches.length > 0) {
+          log(`📊 [NOT-39] Top similarity scores: ${semanticMatches.map(m => m.similarity.toFixed(3)).join(', ')}`);
+        }
+      } else {
+        warn('⚠️ [NOT-39] Semantic search response invalid:', response);
       }
     } catch (error) {
       warn('[NOT-39] Semantic search failed:', error);
@@ -1589,6 +1623,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       chrome.storage.onChanged.addListener(listener);
     }
+
+    // [NOT-40] Check Gemini Nano availability for AI synthesis
+    try {
+      geminiAvailable = await window.geminiService.checkAvailability();
+      if (geminiAvailable) {
+        log('✅ [NOT-40] Gemini Nano is available for synthesis');
+      } else {
+        log('⚠️  [NOT-40] Gemini Nano is not available. Synthesis features will be disabled.');
+      }
+    } catch (error) {
+      error('❌ [NOT-40] Error checking Gemini availability:', error);
+      geminiAvailable = false;
+    }
   } catch (error) {
     error('❌ Error initializing panel:', error);
   }
@@ -2621,6 +2668,29 @@ async function renderHybridView(notesListEl) {
 
     // Section 2: "Related Concepts" (if we have semantic matches)
     if (semanticMatches.length > 0) {
+      // [NOT-40] AI Action Header (Synthesize Connections)
+      const aiAction = document.createElement('button');
+      aiAction.className = 'ai-action-header';
+      aiAction.id = 'synthesize-button';
+      aiAction.innerHTML = `
+        <svg class="icon icon-sm" style="margin-right: 8px;">
+          <use href="#icon-sparkle"></use>
+        </svg>
+        <span>Synthesize Connections</span>
+      `;
+
+      // [NOT-40] Disable button if Gemini Nano is not available
+      if (!geminiAvailable) {
+        aiAction.disabled = true;
+        aiAction.classList.add('disabled');
+        aiAction.title = 'Enable Gemini Nano in Chrome flags to use this feature';
+        log('⚠️  [NOT-40] Synthesize button disabled - Gemini Nano unavailable');
+      } else {
+        aiAction.addEventListener('click', () => handleSynthesizeClick(semanticMatches));
+      }
+
+      notesListEl.appendChild(aiAction);
+
       const header2 = document.createElement('div');
       header2.className = 'hybrid-section-header ai-section';
       header2.textContent = 'Related Concepts';
@@ -2636,6 +2706,213 @@ async function renderHybridView(notesListEl) {
   } catch (error) {
     error('[NOT-39] Error rendering hybrid view:', error);
   }
+}
+
+/**
+ * [NOT-40] Handle Synthesize button click
+ * Generates AI synthesis from current page context and related notes
+ * @param {Array} semanticMatches - Array of semantic match results
+ */
+async function handleSynthesizeClick(semanticMatches) {
+  log('✨ [NOT-40] Synthesize Connections clicked');
+
+  // Prevent multiple simultaneous syntheses
+  if (window.geminiService.isSynthesizing) {
+    log('⚠️  [NOT-40] Synthesis already in progress, ignoring click');
+    return;
+  }
+
+  const button = document.getElementById('synthesize-button');
+  if (!button) {
+    error('❌ [NOT-40] Synthesize button not found');
+    return;
+  }
+
+  try {
+    // Disable button and show loading state
+    button.disabled = true;
+    button.classList.add('loading');
+    const buttonText = button.querySelector('span');
+    const originalText = buttonText.textContent;
+    buttonText.textContent = 'Synthesizing...';
+
+    // Get current page context
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const currentContext = {
+      title: activeTab.title,
+      url: activeTab.url
+    };
+    log('📄 [NOT-40] Current context:', currentContext);
+
+    // Prepare related notes (already have them from semanticMatches)
+    const relatedNotes = semanticMatches.map(match => ({
+      note: match.note,
+      similarity: match.similarity
+    }));
+    log('📚 [NOT-40] Related notes:', relatedNotes.length);
+
+    // Generate synthesis using Gemini Nano
+    const stream = await window.geminiService.generateSynthesis(currentContext, relatedNotes);
+    log('🌊 [NOT-40] Stream received, starting output');
+
+    // Display streaming output
+    await displaySynthesisStream(stream, button);
+
+    // Re-enable button after completion
+    button.disabled = false;
+    button.classList.remove('loading');
+    buttonText.textContent = originalText;
+    log('✅ [NOT-40] Synthesis completed successfully');
+
+  } catch (error) {
+    error('❌ [NOT-40] Synthesis failed:', error);
+
+    // Show error message to user
+    const notesListEl = document.getElementById('notes-list');
+    const errorContainer = document.getElementById('synthesis-output');
+
+    if (errorContainer) {
+      errorContainer.innerHTML = `
+        <div class="synthesis-error">
+          <strong>Synthesis Failed</strong>
+          <p>${error.message || 'An unexpected error occurred. Please try again.'}</p>
+        </div>
+      `;
+    }
+
+    // Re-enable button
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('loading');
+      const buttonText = button.querySelector('span');
+      if (buttonText) {
+        buttonText.textContent = 'Synthesize Connections';
+      }
+    }
+  }
+}
+
+/**
+ * [NOT-40] Display streaming synthesis output
+ * Consumes a ReadableStream and updates the DOM token-by-token
+ * @param {ReadableStream} stream - The AI-generated text stream
+ * @param {HTMLElement} button - The synthesize button element
+ */
+async function displaySynthesisStream(stream, button) {
+  log('🌊 [NOT-40] Starting synthesis stream display');
+
+  const notesListEl = document.getElementById('notes-list');
+  if (!notesListEl) {
+    error('❌ [NOT-40] Notes list element not found');
+    return;
+  }
+
+  // Find or create synthesis output container
+  let outputContainer = document.getElementById('synthesis-output');
+  if (!outputContainer) {
+    outputContainer = document.createElement('div');
+    outputContainer.id = 'synthesis-output';
+    outputContainer.className = 'synthesis-output';
+
+    // Insert right after the synthesize button
+    if (button && button.nextSibling) {
+      notesListEl.insertBefore(outputContainer, button.nextSibling);
+    } else {
+      notesListEl.insertBefore(outputContainer, notesListEl.firstChild);
+    }
+  }
+
+  // Clear previous content and show streaming cursor
+  outputContainer.innerHTML = '<div class="synthesis-content streaming"></div>';
+  const contentDiv = outputContainer.querySelector('.synthesis-content');
+
+  try {
+    let fullText = '';
+
+    // Consume the stream token by token
+    for await (const chunk of stream) {
+      fullText += chunk;
+
+      // Update the DOM with formatted content
+      contentDiv.innerHTML = formatMarkdown(fullText) + '<span class="streaming-cursor"></span>';
+
+      // Scroll to keep the output visible
+      contentDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Remove streaming cursor when done
+    contentDiv.classList.remove('streaming');
+    contentDiv.innerHTML = formatMarkdown(fullText);
+
+    log('✅ [NOT-40] Stream display completed');
+  } catch (error) {
+    error('❌ [NOT-40] Error displaying stream:', error);
+    contentDiv.innerHTML = `<div class="synthesis-error">Error displaying synthesis: ${error.message}</div>`;
+  }
+}
+
+/**
+ * [NOT-40] Format markdown text to HTML
+ * Handles basic markdown: bold, lists, paragraphs
+ * @param {string} text - Raw markdown text
+ * @returns {string} - HTML string
+ */
+function formatMarkdown(text) {
+  if (!text) return '';
+
+  // Escape HTML to prevent XSS
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Bold text: **text** or __text__
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+  // Italic text: *text* or _text_
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+
+  // Convert bullet points to list items
+  // Handle lines starting with - or *
+  const lines = html.split('\n');
+  let inList = false;
+  const processedLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Check if line is a bullet point
+    if (line.match(/^[-*]\s+/)) {
+      const content = line.replace(/^[-*]\s+/, '');
+
+      if (!inList) {
+        processedLines.push('<ul>');
+        inList = true;
+      }
+
+      processedLines.push(`<li>${content}</li>`);
+    } else {
+      // Not a bullet point
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+
+      // Add as paragraph if not empty
+      if (line) {
+        processedLines.push(`<p>${line}</p>`);
+      }
+    }
+  }
+
+  // Close list if still open
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+
+  return processedLines.join('');
 }
 
 /**

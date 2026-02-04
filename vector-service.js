@@ -2,13 +2,102 @@
 // Provides embedding generation and hybrid (keyword + vector) search capabilities
 // Runs in the service worker context for background processing
 
+// [NOT-38] Static imports for bundled ML libraries
+// Service Workers require static imports; dynamic import() is not allowed
+import { pipeline, env } from './dist/transformers.bundle.js';
+import { create, insert, search, save, load } from './dist/orama.bundle.js';
+import { saveOramaIndex, loadOramaIndex } from './storage-service.js';
+
+/**
+ * [NOT-38] TaskQueue - Sequential job processor
+ * Prevents concurrent embedding requests from crashing the Service Worker
+ *
+ * Features:
+ * - Sequential processing (one task at a time)
+ * - Error isolation (one task failure doesn't stop the queue)
+ * - Graceful degradation (failed tasks are logged but queue continues)
+ */
+class TaskQueue {
+  constructor() {
+    this.queue = [];
+    this.isProcessing = false;
+    this.failedTasks = 0;
+    this.completedTasks = 0;
+  }
+
+  /**
+   * Add a task to the queue
+   * @param {Function} task - Async function to execute
+   * @returns {Promise} - Resolves when task completes
+   */
+  async enqueue(task) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ task, resolve, reject });
+      this.process();
+    });
+  }
+
+  /**
+   * Process tasks sequentially
+   * Continues processing even if individual tasks fail
+   * @private
+   */
+  async process() {
+    if (this.isProcessing || this.queue.length === 0) {
+      return;
+    }
+
+    this.isProcessing = true;
+
+    while (this.queue.length > 0) {
+      const { task, resolve, reject } = this.queue.shift();
+      try {
+        const result = await task();
+        resolve(result);
+        this.completedTasks++;
+      } catch (error) {
+        console.error('❌ [NOT-38] Task failed in queue:', error);
+        reject(error);
+        this.failedTasks++;
+        // Continue processing remaining tasks despite failure
+      }
+    }
+
+    this.isProcessing = false;
+
+    // Log queue statistics if there were any failures
+    if (this.failedTasks > 0) {
+      console.warn(`⚠️  [NOT-38] Queue stats: ${this.completedTasks} succeeded, ${this.failedTasks} failed`);
+    }
+  }
+
+  /**
+   * Get current queue length
+   */
+  get length() {
+    return this.queue.length;
+  }
+
+  /**
+   * Get queue statistics
+   */
+  get stats() {
+    return {
+      queued: this.queue.length,
+      completed: this.completedTasks,
+      failed: this.failedTasks,
+      isProcessing: this.isProcessing
+    };
+  }
+}
+
 /**
  * VectorService - Manages semantic search infrastructure
  *
  * Uses Transformers.js (Xenova/all-MiniLM-L6-v2) for generating embeddings
  * and Orama for vector storage and hybrid search.
  *
- * The vector index is persisted to IndexedDB via Orama's persistence plugin.
+ * The vector index is persisted to IndexedDB via Dexie.
  */
 class VectorService {
   constructor() {
@@ -16,6 +105,7 @@ class VectorService {
     this.oramaDb = null; // Orama database instance
     this.isInitialized = false;
     this.initializationPromise = null;
+    this.taskQueue = new TaskQueue(); // [NOT-38] Sequential job processor
   }
 
   /**
@@ -48,21 +138,25 @@ class VectorService {
     try {
       console.log('🧠 [NOT-38] Initializing VectorService...');
 
-      // NOTE: Dynamic imports from CDN are blocked by Chrome Extension CSP
-      // For production, these libraries need to be bundled with the extension:
-      // 1. Download @xenova/transformers and bundle it
-      // 2. Download @orama/orama and bundle it
-      // 3. Update imports below to use local files
-      //
-      // For now, this implementation shows the architecture and will gracefully
-      // handle missing dependencies
+      // [NOT-38] ML libraries are bundled locally using esbuild
+      // Run `npm run build` to regenerate bundles after dependency updates
+      // The bundles are located in chrome-clipper/dist/
 
       // Step 1: Load Transformers.js pipeline for embeddings
       console.log('📦 Loading embedding model (Xenova/all-MiniLM-L6-v2)...');
 
       try {
-        // Try dynamic import (won't work due to CSP, but shows intended architecture)
-        const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+        // Configure ONNX Runtime for Service Worker environment
+        // Service Workers don't support URL.createObjectURL or SharedArrayBuffer
+        const wasmPath = chrome.runtime.getURL('dist/wasm/');
+        console.log('🔧 [NOT-38] Configuring WASM path:', wasmPath);
+
+        env.backends.onnx.wasm.wasmPaths = wasmPath;
+        env.backends.onnx.wasm.numThreads = 1; // Disable multi-threading in Service Worker
+        env.backends.onnx.wasm.simd = true; // Keep SIMD for performance
+        env.backends.onnx.wasm.proxy = false; // Disable proxy workers (they use createObjectURL)
+        env.allowLocalModels = false; // Don't use local model cache
+        env.allowRemoteModels = true; // Allow downloading models from HuggingFace
 
         // Load the feature-extraction pipeline with the quantized model
         this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
@@ -70,9 +164,9 @@ class VectorService {
         });
 
         console.log('✅ Embedding model loaded');
-      } catch (importError) {
-        console.warn('⚠️  [NOT-38] Transformers.js not available (needs to be bundled)');
-        console.warn('   See vector-service.js for bundling instructions');
+      } catch (error) {
+        console.warn('⚠️  [NOT-38] Failed to load Transformers.js:', error);
+        console.warn('   Run `npm run build` to generate the bundle');
         this.pipeline = null;
       }
 
@@ -80,9 +174,6 @@ class VectorService {
       console.log('📊 Initializing Orama vector database...');
 
       try {
-        // Try dynamic import (won't work due to CSP, but shows intended architecture)
-        const { create, insert, search, save, load } = await import('https://cdn.jsdelivr.net/npm/@orama/orama@2.0.0-rc.16/+esm');
-
         // Store Orama functions for later use
         this.oramaCreate = create;
         this.oramaInsert = insert;
@@ -101,28 +192,43 @@ class VectorService {
           embedding: 'vector[384]', // all-MiniLM-L6-v2 produces 384-dimensional vectors
         };
 
-        // Try to restore existing index from IndexedDB
+        // [NOT-38] Try to restore existing index from IndexedDB
         try {
-          const savedIndex = await this._loadIndexFromStorage();
+          const savedIndex = await loadOramaIndex();
           if (savedIndex) {
             console.log('📂 Restoring Orama index from IndexedDB...');
+            const indexSize = JSON.stringify(savedIndex).length;
+            console.log(`📊 Saved index size: ${(indexSize / 1024).toFixed(2)} KB`);
+
+            // Restore the index
             this.oramaDb = await this.oramaLoad(savedIndex);
-            console.log('✅ Orama index restored');
+            console.log('✅ Orama index restored successfully from IndexedDB');
           } else {
             throw new Error('No saved index found');
           }
         } catch (error) {
+          console.warn(`⚠️  Restore failed: ${error.message}`);
           console.log('📝 Creating new Orama index...');
           this.oramaDb = await this.oramaCreate({ schema });
           console.log('✅ New Orama index created');
+
+          // [NOT-40] Clear the initialized flag so panel.js will trigger a reindex
+          // This ensures existing notes are indexed into the new empty index
+          // The old incompatible index will be overwritten on next successful save
+          try {
+            await chrome.storage.local.set({ vectorIndexInitialized: false });
+            console.log('🔄 [NOT-40] Cleared vectorIndexInitialized flag - reindex will be triggered on next panel load');
+          } catch (storageError) {
+            console.warn('⚠️  [NOT-40] Failed to clear vectorIndexInitialized flag:', storageError.message);
+          }
         }
 
         this.isInitialized = true;
         console.log('✅ [NOT-38] VectorService initialized successfully');
 
-      } catch (importError) {
-        console.warn('⚠️  [NOT-38] Orama not available (needs to be bundled)');
-        console.warn('   See vector-service.js for bundling instructions');
+      } catch (error) {
+        console.warn('⚠️  [NOT-38] Failed to initialize Orama:', error);
+        console.warn('   Run `npm run build` to generate the bundle');
         this.oramaDb = null;
 
         // Mark as initialized even if libraries aren't available
@@ -182,12 +288,23 @@ class VectorService {
   }
 
   /**
-   * [NOT-38] Add a note to the vector index
+   * [NOT-38] Add a note to the vector index (with queue)
+   * Uses TaskQueue to prevent concurrent embedding requests
    *
    * @param {Object} note - Note object with id, text, userNote, tags, etc.
    * @returns {Promise<void>}
    */
   async addNoteToIndex(note) {
+    return this.taskQueue.enqueue(() => this._addNoteToIndexInternal(note));
+  }
+
+  /**
+   * [NOT-38] Internal method to add a note to the vector index
+   * @private
+   * @param {Object} note - Note object with id, text, userNote, tags, etc.
+   * @returns {Promise<void>}
+   */
+  async _addNoteToIndexInternal(note) {
     if (!this.isInitialized) {
       await this.init();
     }
@@ -224,8 +341,9 @@ class VectorService {
 
       // Insert into Orama (or update if exists)
       await this.oramaInsert(this.oramaDb, doc);
+      console.log(`📝 [NOT-38] Document inserted with embedding length: ${embedding.length}`);
 
-      // Persist index to IndexedDB
+      // Persist index to Dexie
       await this._saveIndexToStorage();
 
       console.log(`✅ [NOT-38] Note indexed: ${note.id}`);
@@ -263,6 +381,7 @@ class VectorService {
 
       // Generate embedding for the query
       const queryEmbedding = await this.generateEmbedding(query);
+      console.log(`🔍 [NOT-38] Generated embedding (first 5 dims): [${queryEmbedding.slice(0, 5).map(x => x.toFixed(3)).join(', ')}...]`);
 
       // Perform hybrid search (vector + keyword)
       const searchResults = await this.oramaSearch(this.oramaDb, {
@@ -276,6 +395,9 @@ class VectorService {
       });
 
       console.log(`✅ [NOT-38] Found ${searchResults.hits.length} results`);
+      if (searchResults.hits.length > 0) {
+        console.log(`📊 [NOT-38] Top result score: ${searchResults.hits[0].score.toFixed(3)}`);
+      }
 
       // Return hits with scores
       return searchResults.hits.map(hit => ({
@@ -349,42 +471,22 @@ class VectorService {
 
   /**
    * [NOT-38] Save Orama index to IndexedDB
+   * Uses native IndexedDB for unlimited storage (supports images/videos)
    * @private
    */
   async _saveIndexToStorage() {
     try {
       const serialized = await this.oramaSave(this.oramaDb);
+      const sizeKB = (JSON.stringify(serialized).length / 1024).toFixed(2);
+      console.log(`💾 [NOT-38] Serializing index (${sizeKB} KB)...`);
 
-      // Use chrome.storage.local for persistence
-      await chrome.storage.local.set({
-        oramaVectorIndex: serialized,
-      });
+      // Use IndexedDB for persistence (no size limits)
+      await saveOramaIndex(serialized);
 
-      console.log('💾 [NOT-38] Orama index saved to storage');
+      console.log('✅ [NOT-38] Orama index saved to IndexedDB');
     } catch (error) {
-      console.error('❌ Error saving index to storage:', error);
+      console.error('❌ Error saving index to IndexedDB:', error);
       // Don't throw - index saving is not critical
-    }
-  }
-
-  /**
-   * [NOT-38] Load Orama index from IndexedDB
-   * @private
-   * @returns {Promise<Object|null>} - Serialized index or null if not found
-   */
-  async _loadIndexFromStorage() {
-    try {
-      const result = await chrome.storage.local.get('oramaVectorIndex');
-
-      if (result.oramaVectorIndex) {
-        console.log('📂 [NOT-38] Found saved Orama index');
-        return result.oramaVectorIndex;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('❌ Error loading index from storage:', error);
-      return null;
     }
   }
 }

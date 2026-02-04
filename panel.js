@@ -2233,7 +2233,8 @@ async function handleInitializeGemini() {
 
 /**
  * [NOT-40] Start polling for Gemini status updates
- * Polls every 2 seconds while downloading
+ * Polls every 2 seconds while downloading or checking
+ * Stops when status reaches a final state
  * @private
  */
 let geminiStatusPollInterval = null;
@@ -2250,10 +2251,29 @@ function startGeminiStatusPolling() {
     if (currentMode !== 'settings') {
       clearInterval(geminiStatusPollInterval);
       geminiStatusPollInterval = null;
+      log('[NOT-40] Stopped polling - left settings page');
       return;
     }
 
-    await updateGeminiStatusDisplay();
+    // Get current status
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'GET_GEMINI_STATUS' });
+      if (response.success) {
+        const status = response.status.status;
+
+        // Stop polling if we reached a final state
+        if (status === 'ready' || status === 'unavailable' || status === 'error') {
+          clearInterval(geminiStatusPollInterval);
+          geminiStatusPollInterval = null;
+          log(`[NOT-40] Stopped polling - final status reached: ${status}`);
+        }
+
+        // Update display
+        await updateGeminiStatusDisplay();
+      }
+    } catch (error) {
+      error('[NOT-40] Error polling Gemini status:', error);
+    }
   }, 2000);
 }
 

@@ -19,6 +19,26 @@ let geminiDownloadState = {
   error: null
 };
 
+// [NOT-40] Check Gemini Nano status on startup
+(async () => {
+  try {
+    // Load saved status from storage
+    const saved = await chrome.storage.local.get('geminiDownloadState');
+    if (saved.geminiDownloadState) {
+      geminiDownloadState = saved.geminiDownloadState;
+      console.log('[NOT-40] Loaded Gemini status from storage:', geminiDownloadState.status);
+    }
+
+    // If status is unknown or checking, run a check
+    if (geminiDownloadState.status === 'unknown' || geminiDownloadState.status === 'checking') {
+      console.log('[NOT-40] Running automatic Gemini Nano check...');
+      await initializeGeminiNano();
+    }
+  } catch (error) {
+    console.error('[NOT-40] Error loading Gemini status:', error);
+  }
+})();
+
 // [NOT-38] Keep-Alive: Long-lived port to prevent SW timeout during long operations
 let keepAlivePort = null;
 

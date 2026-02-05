@@ -155,7 +155,7 @@ class OpenRouterProvider {
           'X-Title': 'Knowledge Clipper'
         },
         body: JSON.stringify({
-          model: 'anthropic/claude-3.5-sonnet',
+          model: 'openrouter/auto',
           messages: [{ role: 'user', content: 'Hi' }],
           max_tokens: 5
         })

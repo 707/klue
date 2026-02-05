@@ -351,7 +351,7 @@ async function createChat(title, modelId) {
     const now = Date.now();
     const id = await db.chats.add({
       title: title || 'New Chat',
-      modelId: modelId || 'anthropic/claude-3.5-sonnet',
+      modelId: modelId || 'openrouter/auto',
       createdAt: now,
       updatedAt: now
     });

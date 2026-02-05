@@ -319,7 +319,34 @@ All design tokens are defined as CSS custom properties in `styles.css`:
 </svg>
 ```
 
-## Updates & Maintenance
+## 6. AI & Semantic Design
+
+To support the pivot from storage to synthesis, the UI employs "Ambient Intelligence" signals.
+
+### 6.1 AI Semantic Tokens
+- **AI Primary**: `#8B5CF6` (Violet-500) - used for AI-specific actions and indicators.
+- **AI Surface**: `rgba(139, 92, 246, 0.1)` - subtle background for AI sections.
+
+### 6.2 Context Pill States
+- **Standard**: Solid surface, shows count of notes on current URL.
+- **AI Pulse**: Pulsing purple border (`--color-ai-primary`). Indicates semantic matches are available.
+- **Hybrid**: Solid primary color + Sparkle icon (`icon-sparkle`). Indicates both exact and semantic matches.
+
+### 6.3 Compact Insight Card
+Used for semantic matches in the Context View to save space.
+- **Structure**: Connection Badge + Relevant Snippet + Source Favicon.
+- **Interaction**: Click to expand into a full `note-card`.
+- **Feedback**: "Thumbs Down" icon for marking irrelevant connections (shows notification tooltip).
+
+### 6.4 Hybrid Library View
+A split-view layout used when both Exact Matches and Semantic Matches are available.
+- **AI Action Header**: A compact, collapsed banner `[ ✨ Synthesize Connections ]` at the top. Expands to show streaming AI summary.
+- **Section Headers**:
+    - "From this Page": Standard Note Cards (Exact Matches).
+    - "Related Concepts": Insight Cards (Semantic Matches).
+- **Separation**: Sections are divided by a subtle border (`var(--color-border)`).
+
+## 7. Updates & Maintenance
 - Version: 1.12.0
 - Last Updated: 2026-02-04
 - Maintained by: Development Team

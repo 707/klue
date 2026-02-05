@@ -47,5 +47,12 @@
       },
       "description": "Capture selected text"
     }
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": [
+      "dist/wasm/*.wasm",
+      "dist/wasm/*.mjs"
+    ],
+    "matches": ["<all_urls>"]
+  }]
 }

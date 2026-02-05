@@ -81,7 +81,7 @@ class AIHarness {
       });
 
       // Get model ID from context or use default
-      const modelId = context.modelId || 'anthropic/claude-3.5-sonnet';
+      const modelId = context.modelId || 'openrouter/auto';
 
       console.log(`💬 [NOT-46] Sending message to ${modelId}:`, text.substring(0, 50) + '...');
 
@@ -104,33 +104,13 @@ class AIHarness {
    * @returns {Array} - Array of model objects with id, name, and description
    */
   getAvailableModels() {
-    // [NOT-46] Hardcoded list of popular OpenRouter models
-    // In a future version, this could be fetched from OpenRouter's models API
+    // [NOT-46] Free models from OpenRouter
+    // Using openrouter/auto which routes to the best available free model
     return [
       {
-        id: 'anthropic/claude-3.5-sonnet',
-        name: 'Claude 3.5 Sonnet',
-        description: 'Most capable Claude model'
-      },
-      {
-        id: 'anthropic/claude-3-haiku',
-        name: 'Claude 3 Haiku',
-        description: 'Fast and cost-effective'
-      },
-      {
-        id: 'google/gemini-pro',
-        name: 'Gemini Pro',
-        description: 'Google\'s most capable model'
-      },
-      {
-        id: 'openai/gpt-4-turbo',
-        name: 'GPT-4 Turbo',
-        description: 'OpenAI\'s latest GPT-4'
-      },
-      {
-        id: 'openai/gpt-3.5-turbo',
-        name: 'GPT-3.5 Turbo',
-        description: 'Fast and efficient'
+        id: 'openrouter/auto',
+        name: 'OpenRouter Auto (Free)',
+        description: 'Automatically routes to the best available free model'
       }
     ];
   }

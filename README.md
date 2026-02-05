@@ -59,7 +59,8 @@ This will watch for file changes and notify you when to reload the extension. Ke
 3. Use search to find specific clips
 4. Click on tag pills to filter by tag
 5. Click on a card to expand and see full text
-6. Click the 🗑️ icon to delete a clip
+6. Click the "Context" pill (when available) to automatically filter and expand notes related to the current page
+7. Click the 🗑️ icon to delete a clip
 
 ## Development
 

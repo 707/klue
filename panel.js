@@ -2951,17 +2951,17 @@ async function renderHybridView(notesListEl) {
       semanticMatches.forEach((matchResult, index) => {
         const { note } = matchResult;
 
-        // [NOT-48] Ensure note has metadata (defensive check for legacy notes)
-        if (!note.metadata) {
-          warn(`⚠️ [NOT-48] Note ${note.id} missing metadata, using defaults`);
-          note.metadata = {
-            siteName: 'Unknown',
-            favicon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><text y="12" font-size="12">📄</text></svg>',
-            title: note.text?.substring(0, 50) || 'Untitled'
-          };
+        // [NOT-48] Hydrate with full note data from allNotes to ensure:
+        // 1. Current state (starred, readLater) is reflected
+        // 2. Complete metadata (siteName, favicon) is available
+        const fullNote = allNotes.find(n => n.id === note.id);
+
+        if (!fullNote) {
+          warn(`⚠️ [NOT-48] Note ${note.id} not found in allNotes, skipping`);
+          return; // Skip this note if not found
         }
 
-        const noteCard = createNoteCard(note, indexOffset + index);
+        const noteCard = createNoteCard(fullNote, indexOffset + index);
 
         // [NOT-48] Add .related class for visual distinction
         noteCard.classList.add('related');
@@ -2982,7 +2982,7 @@ async function renderHybridView(notesListEl) {
           // [NOT-48] Add feedback handler
           feedbackButton.addEventListener('click', async (e) => {
             e.stopPropagation();
-            await handleRelatedNoteFeedback(note.id, noteCard);
+            await handleRelatedNoteFeedback(fullNote.id, noteCard);
           });
 
           // Insert feedback button as first action (before edit)

@@ -494,12 +494,15 @@ async function checkContextualRecall() {
 }
 
 /**
- * [NOT-31] [NOT-39] Helper to show pill with one-time animation and appropriate state
+ * [NOT-31] [NOT-39] [NOT-48] Helper to show pill with one-time animation and appropriate state
  * @param {HTMLElement} pillElement - The pill element
  * @param {string} state - The state class to apply: 'pulse', 'hybrid', or 'exact'
  */
 function showPillWithAnimation(pillElement, state = 'exact') {
   pillElement.classList.remove('hidden');
+
+  // [NOT-48] Preserve active class if it was already present
+  const wasActive = pillElement.classList.contains('active');
 
   // [NOT-39] Remove all state classes first
   pillElement.classList.remove('pulse', 'hybrid', 'active');
@@ -515,6 +518,11 @@ function showPillWithAnimation(pillElement, state = 'exact') {
   } else {
     // exact or domain state
     if (iconUse) iconUse.setAttribute('href', '#icon-file-text');
+  }
+
+  // [NOT-48] Restore active class to maintain hybrid view state
+  if (wasActive) {
+    pillElement.classList.add('active');
   }
 
   // One-time entrance animation
@@ -2801,8 +2809,9 @@ function renderNotesList() {
   const focusedNoteId = activeElement?.closest('.note-card, .insight-card')?.dataset?.noteId;
   const focusedElementSelector = activeElement?.className;
 
-  // Clear existing notes and sections (but keep empty states)
-  const existingCards = notesListEl.querySelectorAll('.note-card, .insight-card, .hybrid-section-header');
+  // [NOT-48] Clear existing notes and sections (but keep empty states)
+  // Explicitly clear AI elements to prevent duplication on re-renders
+  const existingCards = notesListEl.querySelectorAll('.note-card, .insight-card, .hybrid-section-header, .ai-action-header, .synthesis-output');
   existingCards.forEach(card => card.remove());
 
   // Handle empty states
@@ -2938,15 +2947,112 @@ async function renderHybridView(notesListEl) {
       header2.textContent = 'Related Concepts';
       notesListEl.appendChild(header2);
 
+      // [NOT-48] Use createNoteCard for semantic matches instead of renderInsightCard
       semanticMatches.forEach((matchResult, index) => {
-        const insightCard = renderInsightCard(matchResult, indexOffset + index);
-        notesListEl.appendChild(insightCard);
+        const { note } = matchResult;
+        const noteCard = createNoteCard(note, indexOffset + index);
+
+        // [NOT-48] Add .related class for visual distinction
+        noteCard.classList.add('related');
+
+        // [NOT-48] Inject "Thumbs Down" feedback button into .note-actions
+        const noteActions = noteCard.querySelector('.note-actions');
+        if (noteActions) {
+          const feedbackButton = document.createElement('button');
+          feedbackButton.className = 'delete-button feedback-button';
+          feedbackButton.title = 'Mark as not relevant';
+          feedbackButton.setAttribute('aria-label', 'Mark this connection as not relevant');
+          feedbackButton.innerHTML = `
+            <svg class="icon icon-sm">
+              <use href="#icon-x"></use>
+            </svg>
+          `;
+
+          // [NOT-48] Add feedback handler
+          feedbackButton.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await handleRelatedNoteFeedback(note.id, noteCard);
+          });
+
+          // Insert feedback button as first action (before edit)
+          noteActions.insertBefore(feedbackButton, noteActions.firstChild);
+        }
+
+        // Apply expand state if needed
+        if (isExpandedAll) {
+          noteCard.classList.add('expanded');
+          noteCard.setAttribute('aria-expanded', 'true');
+        }
+
+        notesListEl.appendChild(noteCard);
       });
     }
 
-    log(`📝 [NOT-39] Rendered hybrid view: ${exactMatches.length} exact, ${semanticMatches.length} semantic`);
+    log(`📝 [NOT-39] [NOT-48] Rendered hybrid view: ${exactMatches.length} exact, ${semanticMatches.length} semantic`);
   } catch (error) {
     error('[NOT-39] Error rendering hybrid view:', error);
+  }
+}
+
+/**
+ * [NOT-48] Handle feedback on related note card - mark connection as not relevant
+ * Stores exclusion in database, removes card with animation, triggers context recall update
+ * @param {string} noteId - The ID of the note to mark as irrelevant
+ * @param {HTMLElement} cardElement - The note card element to remove
+ * @returns {Promise<void>}
+ */
+async function handleRelatedNoteFeedback(noteId, cardElement) {
+  try {
+    // Get current tab URL for context
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.url) {
+      warn('[NOT-48] Cannot get current URL for feedback');
+      return;
+    }
+
+    const currentUrl = tab.url;
+
+    // Disable the feedback button to prevent duplicate clicks
+    const feedbackButton = cardElement.querySelector('.feedback-button');
+    if (feedbackButton) {
+      feedbackButton.disabled = true;
+      feedbackButton.style.opacity = '0.5';
+    }
+
+    // Store exclusion in database
+    await window.database.addIgnoredConnection(noteId, currentUrl);
+    log(`✅ [NOT-48] Marked connection as not relevant: ${noteId} on ${currentUrl}`);
+
+    // Remove from semanticMatches array
+    semanticMatches = semanticMatches.filter(match => match.note.id !== noteId);
+
+    // Add removing animation class
+    cardElement.classList.add('removing');
+
+    // Show tooltip notification
+    showTooltip(cardElement, 'Marked as not relevant');
+
+    // Remove card after animation completes
+    setTimeout(() => {
+      cardElement.remove();
+
+      // If no more semantic matches, refresh context pill to update count
+      if (semanticMatches.length === 0) {
+        checkContextualRecall();
+      }
+    }, 200); // Match animation duration
+
+  } catch (error) {
+    error('[NOT-48] Error handling related note feedback:', error);
+
+    // Re-enable button on error
+    const feedbackButton = cardElement.querySelector('.feedback-button');
+    if (feedbackButton) {
+      feedbackButton.disabled = false;
+      feedbackButton.style.opacity = '1';
+    }
+
+    alert('Failed to mark connection as not relevant. Please try again.');
   }
 }
 
@@ -3155,174 +3261,6 @@ function formatMarkdown(text) {
   }
 
   return processedLines.join('');
-}
-
-/**
- * [NOT-39] Render a compact insight card for semantic matches
- * @param {Object} matchResult - Object containing {note, similarity}
- * @param {number} index - The index for staggered animation delay
- * @returns {HTMLElement} - The insight card element
- */
-function renderInsightCard(matchResult, index = 0) {
-  const { note, similarity } = matchResult;
-
-  // Create card container
-  const card = document.createElement('div');
-  card.className = 'insight-card';
-  card.dataset.noteId = note.id;
-  card.style.animationDelay = `${index * 30}ms`;
-  card.setAttribute('tabindex', '0');
-  card.setAttribute('role', 'article');
-  card.setAttribute('aria-label', `Related note from ${note.metadata?.siteName || 'Unknown'}`);
-
-  // Header: Topic badge + Feedback button
-  const header = document.createElement('div');
-  header.className = 'insight-card-header';
-
-  // Topic badge (extracted from first tag or site name)
-  const topicBadge = document.createElement('div');
-  topicBadge.className = 'insight-topic-badge';
-  const topic = note.tags && note.tags.length > 0
-    ? note.tags[0].replace('#', '')
-    : note.metadata?.siteName || 'Note';
-  topicBadge.textContent = topic;
-
-  // Feedback button (thumbs down)
-  const feedbackButton = document.createElement('button');
-  feedbackButton.className = 'insight-feedback-button';
-  feedbackButton.title = 'Mark as not relevant';
-  feedbackButton.innerHTML = `
-    <svg class="icon icon-sm">
-      <use href="#icon-x"></use>
-    </svg>
-  `;
-
-  feedbackButton.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    await handleInsightFeedback(note.id, card);
-  });
-
-  header.appendChild(topicBadge);
-  header.appendChild(feedbackButton);
-
-  // Snippet (2 lines max)
-  const snippet = document.createElement('div');
-  snippet.className = 'insight-snippet';
-  const snippetText = note.userNote || note.text || 'No content';
-  snippet.textContent = snippetText;
-
-  // Source (favicon + domain)
-  const source = document.createElement('div');
-  source.className = 'insight-source';
-
-  const favicon = document.createElement('img');
-  favicon.className = 'insight-source-favicon';
-  favicon.src = note.metadata?.favicon || '';
-  favicon.alt = '';
-
-  const domain = document.createElement('span');
-  const siteName = note.metadata?.siteName || 'Unknown';
-  domain.textContent = siteName;
-
-  // Similarity score
-  const similarityBadge = document.createElement('span');
-  similarityBadge.className = 'insight-similarity';
-  similarityBadge.textContent = `${Math.round(similarity * 100)}%`;
-
-  source.appendChild(favicon);
-  source.appendChild(domain);
-  source.appendChild(similarityBadge);
-
-  // Assemble card
-  card.appendChild(header);
-  card.appendChild(snippet);
-  card.appendChild(source);
-
-  // Click to expand to full note card
-  card.addEventListener('click', () => {
-    expandInsightCard(note, card);
-  });
-
-  return card;
-}
-
-/**
- * [NOT-39] Expand an insight card to show the full note
- * @param {Object} note - The note to expand
- * @param {HTMLElement} insightCard - The insight card element to replace
- */
-function expandInsightCard(note, insightCard) {
-  // Create full note card
-  const fullCard = createNoteCard(note, 0);
-  fullCard.classList.add('expanded');
-  fullCard.setAttribute('aria-expanded', 'true');
-
-  // Replace insight card with full card
-  insightCard.replaceWith(fullCard);
-
-  log(`📝 [NOT-39] Expanded insight card to full note: ${note.id}`);
-}
-
-/**
- * [NOT-39] Handle feedback on insight card - mark connection as not relevant
- * Stores exclusion in database, removes card with animation, shows feedback tooltip
- * @param {string} noteId - The ID of the note to ignore
- * @param {HTMLElement} cardElement - The insight card element to remove
- * @returns {Promise<void>}
- */
-async function handleInsightFeedback(noteId, cardElement) {
-  try {
-    // Get current tab URL for context
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.url) {
-      warn('[NOT-39] Cannot get current URL for feedback');
-      return;
-    }
-
-    const currentUrl = tab.url;
-
-    // Disable the button to prevent duplicate clicks
-    const feedbackButton = cardElement.querySelector('.insight-feedback-button');
-    if (feedbackButton) {
-      feedbackButton.disabled = true;
-      feedbackButton.style.opacity = '0.5';
-    }
-
-    // Store exclusion in database
-    await window.database.addIgnoredConnection(noteId, currentUrl);
-    log(`✅ [NOT-39] Marked connection as not relevant: ${noteId} on ${currentUrl}`);
-
-    // Remove from semanticMatches array
-    semanticMatches = semanticMatches.filter(match => match.note.id !== noteId);
-
-    // Add removing animation class
-    cardElement.classList.add('removing');
-
-    // Show tooltip notification
-    showTooltip(cardElement, 'Marked as not relevant');
-
-    // Remove card after animation completes
-    setTimeout(() => {
-      cardElement.remove();
-
-      // If no more semantic matches, refresh context pill
-      if (semanticMatches.length === 0) {
-        checkContextualRecall();
-      }
-    }, 200); // Match animation duration
-
-  } catch (error) {
-    error('[NOT-39] Error handling insight feedback:', error);
-
-    // Re-enable button on error
-    const feedbackButton = cardElement.querySelector('.insight-feedback-button');
-    if (feedbackButton) {
-      feedbackButton.disabled = false;
-      feedbackButton.style.opacity = '';
-    }
-
-    alert('Failed to save feedback. Please try again.');
-  }
 }
 
 /**

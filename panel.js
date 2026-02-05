@@ -1970,8 +1970,9 @@ async function handleContextPillClick() {
       return;
     }
 
-    // Toggle filter state (when already in library)
-    if (filterState.contextFilter || contextMatchType === 'semantic' || contextMatchType === 'hybrid') {
+    // [NOT-41] Toggle filter state (when already in library)
+    // Check DOM active class instead of match type to determine if pill is active
+    if (pillElement?.classList.contains('active')) {
       // Deactivate filter
       filterState.contextFilter = null;
       pillElement?.classList.remove('active');

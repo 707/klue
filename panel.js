@@ -2950,6 +2950,17 @@ async function renderHybridView(notesListEl) {
       // [NOT-48] Use createNoteCard for semantic matches instead of renderInsightCard
       semanticMatches.forEach((matchResult, index) => {
         const { note } = matchResult;
+
+        // [NOT-48] Ensure note has metadata (defensive check for legacy notes)
+        if (!note.metadata) {
+          warn(`⚠️ [NOT-48] Note ${note.id} missing metadata, using defaults`);
+          note.metadata = {
+            siteName: 'Unknown',
+            favicon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><text y="12" font-size="12">📄</text></svg>',
+            title: note.text?.substring(0, 50) || 'Untitled'
+          };
+        }
+
         const noteCard = createNoteCard(note, indexOffset + index);
 
         // [NOT-48] Add .related class for visual distinction

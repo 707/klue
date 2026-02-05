@@ -2083,7 +2083,8 @@ async function updateGeminiStatusDisplay() {
 }
 
 /**
- * [NOT-40] Create the Gemini status section UI
+ * [NOT-40] [NOT-43] Create the Gemini status section UI
+ * Compact, modular layout that integrates seamlessly with other settings
  * @private
  */
 function createGeminiStatusSection() {
@@ -2119,15 +2120,17 @@ function createGeminiStatusSection() {
       </div>
     </div>
 
-    <div class="settings-info">
-      <h3>System Requirements</h3>
-      <ul>
-        <li>Chrome 138+ (stable release)</li>
-        <li>22 GB free storage</li>
-        <li>16 GB RAM + 4 cores, OR 4 GB VRAM GPU</li>
-        <li>Windows 10+, macOS 13+, Linux, or ChromeOS</li>
-      </ul>
-    </div>
+    <details class="settings-info">
+      <summary>Show system requirements</summary>
+      <div class="requirements-content">
+        <ul>
+          <li>Chrome 138+ (stable release)</li>
+          <li>22 GB free storage</li>
+          <li>16 GB RAM + 4 cores, OR 4 GB VRAM GPU</li>
+          <li>Windows 10+, macOS 13+, Linux, or ChromeOS</li>
+        </ul>
+      </div>
+    </details>
   `;
 
   // Wire up the initialize button

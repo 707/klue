@@ -2,34 +2,19 @@
 // Used by both background.js and panel.js
 
 /**
- * [NOT-57] Base MetadataExtractor class
- * Implements the Strategy Pattern for domain-specific metadata extraction
+ * [NOT-57] Extract page metadata with Strategy Pattern (inline implementation)
+ * This runs in the context of the webpage and is injected via chrome.scripting.executeScript
  *
- * Why: Different content types (GitHub repos, YouTube videos, articles) have
- * different rich metadata that we want to capture into flexible_metadata
+ * Self-contained function with all strategies inline (no external dependencies)
+ * to support chrome.scripting.executeScript's func serialization
+ *
+ * @returns {Object} Metadata object with title, author, siteName, favicon, and flexible_metadata
  */
-class MetadataExtractor {
+function extractPageMetadata() {
   /**
-   * Check if this strategy applies to the current page
-   * @returns {boolean}
+   * Helper: Extract base metadata (shared by all strategies)
    */
-  static matches() {
-    throw new Error('matches() must be implemented by subclass');
-  }
-
-  /**
-   * Extract metadata from the current page
-   * @returns {Object} Metadata object with { title, author, siteName, favicon, flexible_metadata }
-   */
-  static extract() {
-    throw new Error('extract() must be implemented by subclass');
-  }
-
-  /**
-   * [NOT-57] Helper: Extract base metadata (shared by all strategies)
-   * @returns {Object} Basic metadata object
-   */
-  static extractBaseMetadata() {
+  function extractBaseMetadata() {
     const metadata = {
       title: document.title || 'Untitled',
       author: null,
@@ -67,20 +52,12 @@ class MetadataExtractor {
 
     return metadata;
   }
-}
 
-/**
- * [NOT-57] GitHubStrategy - Extract rich metadata from GitHub repositories
- * Captures: stars, language, last commit, description, topics
- */
-class GitHubStrategy extends MetadataExtractor {
-  static matches() {
-    return window.location.hostname === 'github.com' &&
-           window.location.pathname.split('/').length >= 3;
-  }
-
-  static extract() {
-    const metadata = this.extractBaseMetadata();
+  /**
+   * [NOT-57] GitHubStrategy - Extract rich metadata from GitHub repositories
+   */
+  function extractGitHubMetadata() {
+    const metadata = extractBaseMetadata();
     metadata.flexible_metadata.type = 'repo';
 
     try {
@@ -132,20 +109,12 @@ class GitHubStrategy extends MetadataExtractor {
 
     return metadata;
   }
-}
 
-/**
- * [NOT-57] YouTubeStrategy - Extract rich metadata from YouTube videos
- * Captures: duration, channel, views, upload date, category
- */
-class YouTubeStrategy extends MetadataExtractor {
-  static matches() {
-    return window.location.hostname.includes('youtube.com') &&
-           (window.location.pathname.includes('/watch') || window.location.pathname.includes('/shorts'));
-  }
-
-  static extract() {
-    const metadata = this.extractBaseMetadata();
+  /**
+   * [NOT-57] YouTubeStrategy - Extract rich metadata from YouTube videos
+   */
+  function extractYouTubeMetadata() {
+    const metadata = extractBaseMetadata();
     metadata.flexible_metadata.type = 'video';
 
     try {
@@ -199,19 +168,12 @@ class YouTubeStrategy extends MetadataExtractor {
 
     return metadata;
   }
-}
 
-/**
- * [NOT-57] DefaultStrategy - Standard OpenGraph metadata extraction
- * Used for general webpages that don't have domain-specific scrapers
- */
-class DefaultStrategy extends MetadataExtractor {
-  static matches() {
-    return true; // Default strategy always matches
-  }
-
-  static extract() {
-    const metadata = this.extractBaseMetadata();
+  /**
+   * [NOT-57] DefaultStrategy - Standard OpenGraph metadata extraction
+   */
+  function extractDefaultMetadata() {
+    const metadata = extractBaseMetadata();
     metadata.flexible_metadata.type = 'article'; // Default type
 
     try {
@@ -241,30 +203,37 @@ class DefaultStrategy extends MetadataExtractor {
 
     return metadata;
   }
-}
 
-/**
- * [NOT-57] Main metadata extraction function using Strategy Pattern
- * Automatically selects the appropriate strategy based on the current page
- *
- * @returns {Object} Metadata object with title, author, siteName, favicon, and flexible_metadata
- */
-function extractPageMetadata() {
-  // [NOT-57] Strategy selection: try each strategy until one matches
-  const strategies = [
-    GitHubStrategy,
-    YouTubeStrategy,
-    DefaultStrategy // Always matches (fallback)
-  ];
+  // [NOT-57] Strategy selection: check URL and apply appropriate extractor
+  try {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
 
-  for (const Strategy of strategies) {
-    if (Strategy.matches()) {
-      console.log(`🎯 [NOT-57] Using ${Strategy.name} for metadata extraction`);
-      return Strategy.extract();
+    // GitHub repository
+    if (hostname === 'github.com' && pathname.split('/').length >= 3) {
+      console.log('🎯 [NOT-57] Using GitHub strategy');
+      return extractGitHubMetadata();
     }
-  }
 
-  // Should never reach here (DefaultStrategy always matches)
-  console.warn('⚠️  [NOT-57] No strategy matched, using fallback');
-  return DefaultStrategy.extract();
+    // YouTube video
+    if (hostname.includes('youtube.com') && (pathname.includes('/watch') || pathname.includes('/shorts'))) {
+      console.log('🎯 [NOT-57] Using YouTube strategy');
+      return extractYouTubeMetadata();
+    }
+
+    // Default fallback
+    console.log('🎯 [NOT-57] Using Default strategy');
+    return extractDefaultMetadata();
+
+  } catch (error) {
+    console.error('❌ [NOT-57] Metadata extraction failed:', error);
+    // Return minimal metadata on error
+    return {
+      title: document.title || 'Untitled',
+      author: null,
+      siteName: window.location.hostname.replace('www.', ''),
+      favicon: `https://www.google.com/s2/favicons?domain=${window.location.hostname}&sz=32`,
+      flexible_metadata: {}
+    };
+  }
 }

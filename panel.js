@@ -1809,10 +1809,14 @@ async function renderCaptureMode(clipData = {}) {
 
   // [NOT-58] Tier 1: Local Tag Suggestions via Vector Search
   // Search for related notes based on page title to suggest contextual tags
-  const localSuggestions = await fetchLocalTagSuggestions(clipData);
-  if (localSuggestions.length > 0) {
-    log(`🏷️  [NOT-58] Found ${localSuggestions.length} local tag suggestions`);
-    captureTagInput.setLocalSuggestions(localSuggestions);
+  try {
+    const localSuggestions = await fetchLocalTagSuggestions(clipData);
+    if (localSuggestions.length > 0) {
+      log(`🏷️  [NOT-58] Found ${localSuggestions.length} local tag suggestions`);
+      captureTagInput.setLocalSuggestions(localSuggestions);
+    }
+  } catch (err) {
+    error('❌ [NOT-58] Error in tag suggestions (non-fatal):', err);
   }
 
   // [NOT-33] Render image previews
@@ -2045,8 +2049,8 @@ async function fetchLocalTagSuggestions(clipData) {
     });
 
     return Array.from(tagSet).slice(0, 8); // Limit to 8 suggestions
-  } catch (error) {
-    error('❌ [NOT-58] Error fetching local tag suggestions:', error);
+  } catch (err) {
+    error('❌ [NOT-58] Error fetching local tag suggestions:', err);
     return [];
   }
 }

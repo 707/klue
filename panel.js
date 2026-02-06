@@ -1136,12 +1136,27 @@ class TagInput {
     this.inputValue = '';
     this.suggestions = [];
     this.selectedIndex = -1;
+    this.localSuggestions = []; // [NOT-58] Tags from vector search (Tier 1)
 
     // [NOT-22] Create wrapper for input and suggestions
     this.wrapper = document.createElement('div');
     this.container.appendChild(this.wrapper);
 
     this.render();
+  }
+
+  /**
+   * [NOT-58] Set local tag suggestions from vector search
+   * These are rendered as "ghost chips" with dashed blue borders
+   *
+   * @param {Array<string>} suggestions - Array of tag names (without # prefix)
+   */
+  setLocalSuggestions(suggestions) {
+    this.localSuggestions = suggestions.filter(tag => {
+      const lowerTag = tag.toLowerCase();
+      return !this.tags.some(t => t.toLowerCase() === lowerTag);
+    });
+    this.renderTagSuggestions();
   }
 
   /**
@@ -1438,47 +1453,83 @@ class TagInput {
       existingSuggestions.remove();
     }
 
-    // Get recent tags (sorted by most recent usage)
-    const recentTags = this.getRecentTags(10);
-
-    // Filter out already-added tags
-    const availableTags = recentTags.filter(tag => {
+    // [NOT-58] Get local suggestions (from vector search)
+    const availableLocalSuggestions = this.localSuggestions.filter(tag => {
       const lowerTag = tag.toLowerCase();
       return !this.tags.some(t => t.toLowerCase() === lowerTag);
     });
 
-    if (availableTags.length === 0) {
-      return; // Don't show empty suggestions
+    // Get recent tags (sorted by most recent usage)
+    const recentTags = this.getRecentTags(10);
+
+    // Filter out already-added tags and local suggestions (to avoid duplicates)
+    const availableRecentTags = recentTags.filter(tag => {
+      const lowerTag = tag.toLowerCase();
+      return !this.tags.some(t => t.toLowerCase() === lowerTag) &&
+             !availableLocalSuggestions.some(s => s.toLowerCase() === lowerTag);
+    });
+
+    // Don't show suggestions if both are empty
+    if (availableLocalSuggestions.length === 0 && availableRecentTags.length === 0) {
+      return;
     }
 
     // Create suggestions container
     const suggestionsContainer = document.createElement('div');
     suggestionsContainer.className = 'tag-suggestions';
 
-    // Add label
-    const label = document.createElement('span');
-    label.className = 'tag-suggestions-label';
-    label.textContent = 'Recent:';
-    suggestionsContainer.appendChild(label);
+    // [NOT-58] Render Local Suggestions (Ghost Chips - Dashed Blue)
+    if (availableLocalSuggestions.length > 0) {
+      const localLabel = document.createElement('span');
+      localLabel.className = 'tag-suggestions-label';
+      localLabel.textContent = 'Related:';
+      suggestionsContainer.appendChild(localLabel);
 
-    // Render each suggestion chip
-    availableTags.forEach(tag => {
-      const chip = document.createElement('div');
-      chip.className = 'tag-suggestion-chip';
+      availableLocalSuggestions.forEach(tag => {
+        const chip = document.createElement('div');
+        chip.className = 'tag-suggestion-chip tag-suggestion-local';
 
-      const icon = document.createElement('span');
-      icon.className = 'tag-suggestion-icon';
-      icon.textContent = '+';
+        const icon = document.createElement('span');
+        icon.className = 'tag-suggestion-icon';
+        icon.textContent = '+';
 
-      chip.appendChild(icon);
-      chip.appendChild(document.createTextNode(tag));
+        chip.appendChild(icon);
+        chip.appendChild(document.createTextNode(tag));
 
-      chip.addEventListener('click', () => {
-        this.addTag(tag);
+        chip.addEventListener('click', () => {
+          this.addTag(tag);
+        });
+
+        suggestionsContainer.appendChild(chip);
       });
+    }
 
-      suggestionsContainer.appendChild(chip);
-    });
+    // Render Recent Tags (Standard Chips)
+    if (availableRecentTags.length > 0) {
+      const recentLabel = document.createElement('span');
+      recentLabel.className = 'tag-suggestions-label';
+      recentLabel.textContent = 'Recent:';
+      recentLabel.style.marginLeft = availableLocalSuggestions.length > 0 ? 'var(--spacing-md)' : '0';
+      suggestionsContainer.appendChild(recentLabel);
+
+      availableRecentTags.forEach(tag => {
+        const chip = document.createElement('div');
+        chip.className = 'tag-suggestion-chip';
+
+        const icon = document.createElement('span');
+        icon.className = 'tag-suggestion-icon';
+        icon.textContent = '+';
+
+        chip.appendChild(icon);
+        chip.appendChild(document.createTextNode(tag));
+
+        chip.addEventListener('click', () => {
+          this.addTag(tag);
+        });
+
+        suggestionsContainer.appendChild(chip);
+      });
+    }
 
     this.wrapper.appendChild(suggestionsContainer);
   }
@@ -1684,6 +1735,9 @@ async function renderCaptureMode(clipData = {}) {
     document.getElementById('capture-site-name').textContent = clipData.metadata.siteName;
     document.getElementById('capture-url').textContent = clipData.url;
 
+    // [NOT-58] Render dynamic source bar based on flexible_metadata.type
+    renderDynamicSourceBar(clipData, sourceBar);
+
     // [NOT-27] Check if this is a bookmark (no text/html) or text selection
     if (!clipData.text && !clipData.html) {
       // Bookmark mode - show page title with badge
@@ -1753,11 +1807,248 @@ async function renderCaptureMode(clipData = {}) {
   tagsContainer.innerHTML = ''; // Clear any existing tag input
   captureTagInput = new TagInput(tagsContainer, []);
 
+  // [NOT-58] Tier 1: Local Tag Suggestions via Vector Search
+  // Search for related notes based on page title to suggest contextual tags
+  const localSuggestions = await fetchLocalTagSuggestions(clipData);
+  if (localSuggestions.length > 0) {
+    log(`🏷️  [NOT-58] Found ${localSuggestions.length} local tag suggestions`);
+    captureTagInput.setLocalSuggestions(localSuggestions);
+  }
+
   // [NOT-33] Render image previews
   renderImagePreviews('capture-image-preview-list', currentImages, false);
 
   // [NOT-16] Store clipData for save handler
   window.currentClipData = clipData;
+}
+
+/**
+ * [NOT-58] Render dynamic source bar based on content type
+ * Adds type-specific UI elements (repo stats, video timestamp, reading time)
+ *
+ * @param {Object} clipData - The clip data with metadata
+ * @param {HTMLElement} sourceBar - The source bar container element
+ */
+function renderDynamicSourceBar(clipData, sourceBar) {
+  // Remove any existing dynamic content
+  const existingDynamicContent = sourceBar.querySelector('.source-bar-dynamic');
+  if (existingDynamicContent) {
+    existingDynamicContent.remove();
+  }
+
+  // Check if flexible_metadata exists and has a type
+  const flexibleMetadata = clipData.metadata?.flexible_metadata;
+  if (!flexibleMetadata || !flexibleMetadata.type) {
+    return; // No special rendering needed
+  }
+
+  const dynamicContent = document.createElement('div');
+  dynamicContent.className = 'source-bar-dynamic';
+
+  switch (flexibleMetadata.type) {
+    case 'repo':
+      // Render GitHub repo stats (stars, language)
+      renderRepoStats(flexibleMetadata, dynamicContent);
+      break;
+
+    case 'video':
+      // Render video timestamp toggle
+      renderVideoTimestamp(flexibleMetadata, dynamicContent);
+      break;
+
+    case 'article':
+      // Render reading time if available
+      renderReadingTime(flexibleMetadata, dynamicContent);
+      break;
+
+    default:
+      return; // Unknown type, no special rendering
+  }
+
+  // Append dynamic content to source bar
+  sourceBar.appendChild(dynamicContent);
+}
+
+/**
+ * [NOT-58] Render repository stats for GitHub repos
+ *
+ * @param {Object} metadata - The flexible metadata object
+ * @param {HTMLElement} container - The container to append to
+ */
+function renderRepoStats(metadata, container) {
+  const statsWrapper = document.createElement('div');
+  statsWrapper.className = 'repo-stats';
+
+  // Stars count
+  if (metadata.stars !== undefined) {
+    const starsElement = document.createElement('div');
+    starsElement.className = 'repo-stat';
+    starsElement.innerHTML = `
+      <svg class="icon icon-sm" style="color: var(--color-warning);">
+        <use href="#icon-star"></use>
+      </svg>
+      <span>${formatNumber(metadata.stars)}</span>
+    `;
+    statsWrapper.appendChild(starsElement);
+  }
+
+  // Language
+  if (metadata.language) {
+    const languageElement = document.createElement('div');
+    languageElement.className = 'repo-stat';
+
+    const languageDot = document.createElement('span');
+    languageDot.className = 'language-dot';
+    languageDot.style.backgroundColor = getLanguageColor(metadata.language);
+
+    const languageText = document.createElement('span');
+    languageText.textContent = metadata.language;
+
+    languageElement.appendChild(languageDot);
+    languageElement.appendChild(languageText);
+    statsWrapper.appendChild(languageElement);
+  }
+
+  container.appendChild(statsWrapper);
+}
+
+/**
+ * [NOT-58] Render video timestamp information
+ *
+ * @param {Object} metadata - The flexible metadata object
+ * @param {HTMLElement} container - The container to append to
+ */
+function renderVideoTimestamp(metadata, container) {
+  if (!metadata.duration) {
+    return;
+  }
+
+  const timestampElement = document.createElement('div');
+  timestampElement.className = 'video-timestamp';
+
+  const durationText = document.createElement('span');
+  durationText.textContent = `Duration: ${metadata.duration}`;
+  durationText.style.fontSize = 'var(--font-size-sm)';
+  durationText.style.color = 'var(--color-text-secondary)';
+
+  timestampElement.appendChild(durationText);
+  container.appendChild(timestampElement);
+}
+
+/**
+ * [NOT-58] Render reading time for articles
+ *
+ * @param {Object} metadata - The flexible metadata object
+ * @param {HTMLElement} container - The container to append to
+ */
+function renderReadingTime(metadata, container) {
+  if (!metadata.readingTime) {
+    return;
+  }
+
+  const readingTimeElement = document.createElement('div');
+  readingTimeElement.className = 'reading-time';
+
+  const timeText = document.createElement('span');
+  timeText.textContent = `📖 ${metadata.readingTime}`;
+  timeText.style.fontSize = 'var(--font-size-sm)';
+  timeText.style.color = 'var(--color-text-secondary)';
+
+  readingTimeElement.appendChild(timeText);
+  container.appendChild(readingTimeElement);
+}
+
+/**
+ * [NOT-58] Format large numbers with K/M suffixes
+ *
+ * @param {number} num - The number to format
+ * @returns {string} - Formatted number string
+ */
+function formatNumber(num) {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toString();
+}
+
+/**
+ * [NOT-58] Get color for programming language
+ * Based on GitHub's language colors
+ *
+ * @param {string} language - The programming language name
+ * @returns {string} - Hex color code
+ */
+function getLanguageColor(language) {
+  const colors = {
+    'JavaScript': '#f1e05a',
+    'TypeScript': '#3178c6',
+    'Python': '#3572A5',
+    'Java': '#b07219',
+    'Go': '#00ADD8',
+    'Rust': '#dea584',
+    'Ruby': '#701516',
+    'PHP': '#4F5D95',
+    'C++': '#f34b7d',
+    'C': '#555555',
+    'C#': '#178600',
+    'Swift': '#ffac45',
+    'Kotlin': '#A97BFF',
+    'Dart': '#00B4AB',
+    'HTML': '#e34c26',
+    'CSS': '#563d7c',
+    'Shell': '#89e051',
+    'Vue': '#41b883',
+    'React': '#61dafb'
+  };
+  return colors[language] || '#8b8b8b'; // Default gray
+}
+
+/**
+ * [NOT-58] Fetch local tag suggestions using vector search
+ * Searches for semantically related notes and extracts unique tags
+ *
+ * @param {Object} clipData - The current clip data with metadata
+ * @returns {Promise<Array<string>>} - Array of suggested tag names (without # prefix)
+ */
+async function fetchLocalTagSuggestions(clipData) {
+  try {
+    // Use page title as search query for finding related notes
+    const query = clipData.metadata?.title || clipData.text?.substring(0, 100) || '';
+    if (!query.trim()) {
+      return [];
+    }
+
+    // Search for top 5 related notes using vector similarity
+    const response = await chrome.runtime.sendMessage({
+      action: 'VECTOR_SEARCH',
+      query: query,
+      limit: 5
+    });
+
+    if (!response.success || !response.results) {
+      warn('⚠️  [NOT-58] Vector search failed or returned no results');
+      return [];
+    }
+
+    // Extract unique tags from search results
+    const tagSet = new Set();
+    response.results.forEach(result => {
+      if (result.note && result.note.tags) {
+        result.note.tags.forEach(tag => {
+          const cleanTag = tag.startsWith('#') ? tag.substring(1) : tag;
+          tagSet.add(cleanTag);
+        });
+      }
+    });
+
+    return Array.from(tagSet).slice(0, 8); // Limit to 8 suggestions
+  } catch (error) {
+    error('❌ [NOT-58] Error fetching local tag suggestions:', error);
+    return [];
+  }
 }
 
 /**
@@ -1852,6 +2143,54 @@ async function handleSaveClip(clipData = {}) {
     error('❌ Error saving clip:', error);
     saveButton.disabled = false;
     alert('Failed to save clip. Please try again.');
+  }
+}
+
+/**
+ * [NOT-58] Handle Pulse Pill (Analyze Page) button click
+ * Triggers AI metadata enhancement with 3-state animation:
+ * - Idle -> Processing (shimmer animation)
+ * - Processing -> Done (success state with checkmark)
+ * - Done -> Idle (fade back after 2 seconds)
+ *
+ * Currently a mock function until Epic 3 AI integration is ready
+ */
+async function handlePulsePillClick() {
+  const pulsePillButton = document.getElementById('pulse-pill-button');
+  const pulsePillText = pulsePillButton.querySelector('.pulse-pill-text');
+
+  if (!pulsePillButton || pulsePillButton.dataset.state !== 'idle') {
+    return; // Already processing or done
+  }
+
+  log('✨ [NOT-58] Pulse Pill clicked - triggering AI metadata enhancement');
+
+  // State A -> B: Idle to Processing
+  pulsePillButton.dataset.state = 'processing';
+  pulsePillText.textContent = 'Analyzing...';
+
+  try {
+    // [NOT-58] Mock AI processing - will be replaced with real AI call in Epic 3
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // State B -> C: Processing to Done
+    pulsePillButton.dataset.state = 'done';
+    pulsePillText.textContent = 'Metadata Added';
+
+    log('✅ [NOT-58] AI metadata enhancement complete (mock)');
+
+    // State C -> A: Done to Idle (after 2 seconds)
+    setTimeout(() => {
+      pulsePillButton.dataset.state = 'idle';
+      pulsePillText.textContent = 'Analyze Page';
+    }, 2000);
+
+  } catch (error) {
+    error('❌ [NOT-58] Pulse Pill error:', error);
+    // Reset to idle on error
+    pulsePillButton.dataset.state = 'idle';
+    pulsePillText.textContent = 'Analyze Page';
   }
 }
 
@@ -4947,6 +5286,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveButton.addEventListener('click', () => {
       handleSaveClip(window.currentClipData || {});
     });
+  }
+
+  // [NOT-58] Pulse Pill button handler
+  const pulsePillButton = document.getElementById('pulse-pill-button');
+  if (pulsePillButton) {
+    pulsePillButton.addEventListener('click', handlePulsePillClick);
   }
 
   // [NOT-33] Image upload button handler

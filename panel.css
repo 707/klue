@@ -379,6 +379,53 @@ body {
   min-width: 0;
 }
 
+/* [NOT-58] Dynamic Source Bar - Type-specific elements */
+.source-bar-dynamic {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-left: auto;
+  padding-left: var(--spacing-md);
+  border-left: 1px solid var(--color-border);
+}
+
+/* [NOT-58] Repository Stats */
+.repo-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.repo-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.language-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+/* [NOT-58] Video Timestamp */
+.video-timestamp {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* [NOT-58] Reading Time */
+.reading-time {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
 .site-name {
   font-size: var(--font-size-base);
   font-weight: 600;
@@ -1799,6 +1846,27 @@ body {
   font-size: var(--font-size-xs);
 }
 
+/* [NOT-58] Local Tag Suggestions - Ghost Chips (Dashed Blue) */
+.tag-suggestion-local {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px dashed var(--color-primary);
+  border-width: 2px;
+}
+
+.tag-suggestion-local:hover {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  border-style: solid;
+  transform: translateY(-1px);
+}
+
+.tag-suggestion-local .tag-suggestion-icon {
+  color: var(--color-primary);
+  opacity: 0.7;
+}
+
 /* [NOT-19] Note Edit Form */
 .note-edit-form {
   margin-top: var(--spacing-md);
@@ -2954,5 +3022,102 @@ input:focus-visible,
   background: var(--color-info-bg);
   color: var(--color-info);
   border: 1px solid var(--color-info);
+}
+
+/* =============================================================================
+   [NOT-58] Pulse Pill - AI Metadata Enhancement Button
+   ============================================================================= */
+
+/**
+ * [NOT-58] Pulse Pill Component
+ * A ghost button that triggers AI metadata enhancement with 3 states:
+ * - State A (Idle): "✨ Analyze Page" ghost button style
+ * - State B (Processing): Shimmer/pulse animation
+ * - State C (Done): "Metadata Added" with success tick, then fades back
+ */
+.pulse-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: transparent;
+  color: var(--color-ai-primary);
+  border: 2px solid var(--color-ai-primary);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-out-spring);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  justify-content: center;
+}
+
+/* State A (Idle) - Ghost button with sparkle icon */
+.pulse-pill[data-state="idle"]:hover {
+  background: var(--color-ai-surface);
+  border-color: var(--color-ai-primary);
+  transform: translateY(-1px);
+}
+
+.pulse-pill[data-state="idle"]:active {
+  transform: scale(0.98);
+}
+
+/* State B (Processing) - Pulsing animation */
+.pulse-pill[data-state="processing"] {
+  cursor: wait;
+  pointer-events: none;
+  animation: pulse-shimmer 1.5s ease-in-out infinite;
+}
+
+.pulse-pill[data-state="processing"] .pulse-pill-text {
+  opacity: 0.7;
+}
+
+/* State C (Done) - Success state with checkmark */
+.pulse-pill[data-state="done"] {
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+  color: var(--color-success);
+  cursor: default;
+  pointer-events: none;
+}
+
+.pulse-pill[data-state="done"] .pulse-pill-icon {
+  display: none;
+}
+
+.pulse-pill[data-state="done"] .pulse-pill-check {
+  display: block;
+}
+
+/* Pulse Pill Icon */
+.pulse-pill-icon {
+  opacity: 0.8;
+  transition: opacity var(--duration-micro);
+}
+
+.pulse-pill:hover .pulse-pill-icon {
+  opacity: 1;
+}
+
+/* Pulse Pill Check Icon (Hidden by default) */
+.pulse-pill-check {
+  opacity: 0.8;
+}
+
+/* Shimmer animation for processing state */
+@keyframes pulse-shimmer {
+  0%, 100% {
+    border-color: var(--color-ai-primary);
+    box-shadow: 0 0 0 0 var(--color-ai-surface);
+  }
+  50% {
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 0 4px var(--color-ai-surface);
+  }
 }
 

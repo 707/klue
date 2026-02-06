@@ -2088,7 +2088,7 @@ async function handleSaveClip(clipData = {}) {
       return;
     }
 
-    // [NOT-20] [NOT-16] [NOT-27] [NOT-33] Create note object
+    // [NOT-20] [NOT-16] [NOT-27] [NOT-33] [NOT-59] Create note object
     // Manual note: userNote becomes the main text
     // Bookmark: metadata title becomes the main text, userNote is the user's comment
     // Text capture: clipData.text is the main text, userNote is the user's comment
@@ -2104,6 +2104,8 @@ async function handleSaveClip(clipData = {}) {
         siteName: 'Knowledge Clipper',
         favicon: 'icons/icon32.png'
       },
+      // [NOT-59] Extract flexible_metadata from clipData.metadata if present
+      flexible_metadata: (clipData.metadata && clipData.metadata.flexible_metadata) || {},
       timestamp: Date.now(),
       readLater: false, // [NOT-18] Initialize Read Later flag
       starred: false, // [NOT-35] Initialize starred flag for consistency
@@ -2151,13 +2153,13 @@ async function handleSaveClip(clipData = {}) {
 }
 
 /**
- * [NOT-58] Handle Pulse Pill (Analyze Page) button click
+ * [NOT-59] Handle Pulse Pill (Analyze Page) button click
  * Triggers AI metadata enhancement with 3-state animation:
  * - Idle -> Processing (shimmer animation)
  * - Processing -> Done (success state with checkmark)
  * - Done -> Idle (fade back after 2 seconds)
  *
- * Currently a mock function until Epic 3 AI integration is ready
+ * Uses AIHarness to extract structured metadata from page content
  */
 async function handlePulsePillClick() {
   const pulsePillButton = document.getElementById('pulse-pill-button');
@@ -2167,22 +2169,75 @@ async function handlePulsePillClick() {
     return; // Already processing or done
   }
 
-  log('✨ [NOT-58] Pulse Pill clicked - triggering AI metadata enhancement');
+  log('✨ [NOT-59] Pulse Pill clicked - triggering AI metadata enhancement');
 
   // State A -> B: Idle to Processing
   pulsePillButton.dataset.state = 'processing';
   pulsePillText.textContent = 'Analyzing...';
 
   try {
-    // [NOT-58] Mock AI processing - will be replaced with real AI call in Epic 3
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // [NOT-59] Collect page text from current clip data
+    if (!window.currentClipData) {
+      throw new Error('No page content available for analysis');
+    }
+
+    const clipData = window.currentClipData;
+
+    // Build text content for AI analysis
+    // Priority: captured text > page title + metadata
+    let pageText = '';
+
+    if (clipData.text && clipData.text.trim()) {
+      // Use captured text selection
+      pageText = clipData.text;
+    } else if (clipData.metadata) {
+      // Use metadata for bookmark-style captures
+      pageText = `Title: ${clipData.metadata.title || 'Untitled'}\n`;
+      if (clipData.metadata.author) {
+        pageText += `Author: ${clipData.metadata.author}\n`;
+      }
+      pageText += `URL: ${clipData.url || 'No URL'}\n`;
+      if (clipData.metadata.siteName) {
+        pageText += `Site: ${clipData.metadata.siteName}\n`;
+      }
+    } else {
+      throw new Error('No content available for analysis');
+    }
+
+    log('📄 [NOT-59] Content to analyze:', pageText.substring(0, 200) + '...');
+
+    // [NOT-59] Call AIHarness to extract structured data
+    const extractedMetadata = await window.aiHarness.extractStructuredData(
+      pageText,
+      {}, // schema (optional, currently using default prompt)
+      { modelId: 'auto' } // Use smart fallback chain
+    );
+
+    log('✅ [NOT-59] AI metadata extracted:', extractedMetadata);
+
+    // [NOT-59] Merge extracted metadata into flexible_metadata
+    if (!clipData.metadata.flexible_metadata) {
+      clipData.metadata.flexible_metadata = {};
+    }
+
+    // Merge AI-extracted fields into flexible_metadata
+    // Preserve existing fields, but allow AI to add new ones
+    Object.assign(clipData.metadata.flexible_metadata, extractedMetadata);
+
+    log('📦 [NOT-59] Updated flexible_metadata:', clipData.metadata.flexible_metadata);
+
+    // [NOT-59] Update the UI to reflect enhanced metadata
+    // Re-render the dynamic source bar to show new metadata
+    const sourceBar = document.querySelector('.source-bar');
+    if (sourceBar) {
+      renderDynamicSourceBar(clipData, sourceBar);
+    }
 
     // State B -> C: Processing to Done
     pulsePillButton.dataset.state = 'done';
-    pulsePillText.textContent = 'Metadata Added';
+    pulsePillText.textContent = 'Metadata Enhanced';
 
-    log('✅ [NOT-58] AI metadata enhancement complete (mock)');
+    log('✅ [NOT-59] AI metadata enhancement complete');
 
     // State C -> A: Done to Idle (after 2 seconds)
     setTimeout(() => {
@@ -2191,10 +2246,24 @@ async function handlePulsePillClick() {
     }, 2000);
 
   } catch (error) {
-    error('❌ [NOT-58] Pulse Pill error:', error);
-    // Reset to idle on error
+    error('❌ [NOT-59] Pulse Pill error:', error);
+
+    // Show user-friendly error message
     pulsePillButton.dataset.state = 'idle';
-    pulsePillText.textContent = 'Analyze Page';
+    pulsePillText.textContent = 'Analysis Failed';
+
+    // Show error details in console
+    if (error.message.includes('API key')) {
+      alert('AI analysis requires an API key. Please configure your OpenRouter API key in Settings.');
+    } else {
+      alert(`AI analysis failed: ${error.message}`);
+    }
+
+    // Reset to idle after showing error
+    setTimeout(() => {
+      pulsePillButton.dataset.state = 'idle';
+      pulsePillText.textContent = 'Analyze Page';
+    }, 2000);
   }
 }
 

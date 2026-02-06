@@ -194,6 +194,147 @@ class AIHarness {
   }
 
   /**
+   * [NOT-59] Extract structured data from text using AI
+   * Enforces JSON output format for metadata extraction
+   *
+   * @param {string} text - The text to analyze (page content, etc.)
+   * @param {Object} schema - Optional schema describing expected fields
+   * @param {Object} options - Optional configuration (modelId, etc.)
+   * @returns {Promise<Object>} - Parsed JSON object with extracted metadata
+   */
+  async extractStructuredData(text, schema = {}, options = {}) {
+    // Ensure provider is initialized
+    if (!this.currentProvider) {
+      const initialized = await this.initialize('openrouter');
+      if (!initialized) {
+        throw new Error('Failed to initialize AI provider. Please check your API key in Settings.');
+      }
+    }
+
+    try {
+      console.log('🧠 [NOT-59] Extracting structured data...');
+
+      // [NOT-59] Adaptive Context Logic - check model context window
+      const modelId = options.modelId || 'auto';
+      let processedText = text;
+
+      // If using auto mode, check the first model's context window
+      if (modelId === 'auto' && FREE_MODEL_CHAIN.length > 0) {
+        const firstModel = FREE_MODEL_CHAIN[0];
+        console.log(`📊 [NOT-59] Model context window: ${firstModel.contextWindow}`);
+
+        // Small brain (<16k): activate compression mode
+        if (firstModel.contextWindow < 16000) {
+          console.log('🔄 [NOT-59] Small context detected - activating compression mode');
+          // Truncate to first 8k characters to fit within small context
+          processedText = text.substring(0, 8000);
+          if (text.length > 8000) {
+            processedText += '...\n[Content truncated due to model limitations]';
+          }
+        } else {
+          console.log('✅ [NOT-59] Large context detected - sending full text');
+        }
+      }
+
+      // [NOT-59] Construct system prompt that enforces JSON output
+      const systemPrompt = `You are a metadata extractor. Your task is to analyze the given text and extract structured metadata as a JSON object.
+
+Extract the following fields if they are present or can be inferred:
+- type: Content type (article, video, repo, tutorial, documentation, etc.)
+- summary: A brief 1-2 sentence summary
+- topics: Array of main topics or keywords (max 5)
+- readingTime: Estimated reading time (e.g., "5 min read")
+- difficulty: Content difficulty level (beginner, intermediate, advanced) if applicable
+- language: Programming language if code-related
+
+Additional domain-specific fields:
+- For GitHub repos: stars, language, owner, repo, topics
+- For YouTube videos: duration, channel, views, uploadDate
+- For articles: author, publishDate, category
+
+Return ONLY valid JSON. Do not include markdown formatting, code blocks, or explanations.`;
+
+      // Build messages array
+      const messages = [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: `Extract metadata from the following content:\n\n${processedText}`
+        }
+      ];
+
+      // Track the response
+      let responseText = '';
+      let completed = false;
+      let error = null;
+
+      // Call provider with streaming disabled for JSON extraction
+      await new Promise((resolve, reject) => {
+        this.currentProvider.sendMessage(
+          messages,
+          modelId,
+          // onChunk - accumulate response
+          (chunk) => {
+            responseText += chunk;
+          },
+          // onComplete
+          () => {
+            completed = true;
+            resolve();
+          },
+          // onError
+          (err) => {
+            error = err;
+            reject(err);
+          }
+        );
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('📥 [NOT-59] Raw AI response:', responseText);
+
+      // [NOT-59] Robust JSON parsing - handle markdown code blocks
+      let parsedData;
+      try {
+        // First, try to extract JSON from markdown code blocks
+        const codeBlockMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+        if (codeBlockMatch) {
+          console.log('📦 [NOT-59] Found JSON in code block');
+          parsedData = JSON.parse(codeBlockMatch[1]);
+        } else {
+          // Try to find JSON object in the response
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            console.log('📦 [NOT-59] Found JSON object in response');
+            parsedData = JSON.parse(jsonMatch[0]);
+          } else {
+            // Last resort: try parsing the entire response
+            parsedData = JSON.parse(responseText);
+          }
+        }
+
+        console.log('✅ [NOT-59] Successfully parsed JSON:', parsedData);
+        return parsedData;
+
+      } catch (parseError) {
+        console.error('❌ [NOT-59] Failed to parse JSON response:', parseError);
+        console.error('Response was:', responseText);
+        throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
+      }
+
+    } catch (error) {
+      console.error('❌ [NOT-59] Error extracting structured data:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Test if current provider is configured correctly
    * @returns {Promise<boolean>} - Returns true if provider is ready
    */

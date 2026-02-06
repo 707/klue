@@ -2027,7 +2027,7 @@ async function fetchLocalTagSuggestions(clipData) {
 
     // Search for top 5 related notes using vector similarity
     const response = await chrome.runtime.sendMessage({
-      action: 'VECTOR_SEARCH',
+      action: 'SEARCH_NOTES',
       query: query,
       limit: 5
     });

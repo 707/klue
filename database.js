@@ -89,6 +89,33 @@ db.version(7).stores({
   messages: '++id, chatId, timestamp' // Messages within chats (chatId indexed for efficient queries)
 });
 
+// [NOT-57] Version 8: Add flexible_metadata JSON field for dynamic metadata
+db.version(8).stores({
+  notes: 'id, timestamp, *tags, readLater, starred', // No index changes
+  metadata: 'key',
+  ignoredConnections: '++id, noteId, contextUrl',
+  oramaIndex: '++id, timestamp',
+  chats: '++id, createdAt, updatedAt',
+  messages: '++id, chatId, timestamp'
+}).upgrade(async (tx) => {
+  // [NOT-57] Backfill all existing notes with empty flexible_metadata object
+  console.log('🔄 [NOT-57] Adding flexible_metadata field to all notes...');
+
+  const notes = await tx.table('notes').toArray();
+  let updatedCount = 0;
+
+  for (const note of notes) {
+    if (!note.flexible_metadata) {
+      // Initialize with empty object
+      note.flexible_metadata = {};
+      await tx.table('notes').put(note);
+      updatedCount++;
+    }
+  }
+
+  console.log(`✅ [NOT-57] Added flexible_metadata to ${updatedCount} notes`);
+});
+
 console.log('✅ Database schema defined');
 
 /**
@@ -169,10 +196,16 @@ async function migrateFromChromeStorage() {
 /**
  * Add a new note
  * @param {Object} note - Note object with id, text, userNote, tags, url, metadata, timestamp
+ * @param {Object} [note.flexible_metadata={}] - [NOT-57] Dynamic JSON object for domain-specific metadata (e.g., GitHub stars, YouTube duration)
  * @returns {Promise<string>} - Returns the note ID
  */
 async function addNote(note) {
   try {
+    // [NOT-57] Ensure flexible_metadata exists (default to empty object)
+    if (!note.flexible_metadata) {
+      note.flexible_metadata = {};
+    }
+
     const id = await db.notes.add(note);
     console.log('✅ Note added to IndexedDB:', id);
     return id;

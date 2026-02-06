@@ -92,6 +92,31 @@ class TaskQueue {
 }
 
 /**
+ * [NOT-57] Flatten flexible_metadata object into dot-notation keys
+ * Transforms { type: "video", duration: "10m" } into { "metadata.type": "video", "metadata.duration": "10m" }
+ *
+ * Why: Orama (and most simple vector stores) cannot efficiently filter deeply nested JSON.
+ * Flattening allows us to use simple property filters like: where: { "metadata.type": "video" }
+ *
+ * @param {Object} metadata - The flexible_metadata object from a note
+ * @returns {Object} - Flattened object with "metadata." prefixed keys
+ */
+function flattenMetadata(metadata) {
+  if (!metadata || typeof metadata !== 'object') {
+    return {};
+  }
+
+  const flattened = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    // Only include non-null, non-undefined values
+    if (value !== null && value !== undefined) {
+      flattened[`metadata.${key}`] = value;
+    }
+  }
+  return flattened;
+}
+
+/**
  * VectorService - Manages semantic search infrastructure
  *
  * Uses Transformers.js (Xenova/all-MiniLM-L6-v2) for generating embeddings
@@ -181,7 +206,7 @@ class VectorService {
         this.oramaSave = save;
         this.oramaLoad = load;
 
-        // Define Orama schema
+        // [NOT-57] Define Orama schema with flattened metadata fields
         const schema = {
           id: 'string',
           text: 'string', // Searchable text content
@@ -190,6 +215,14 @@ class VectorService {
           url: 'string',
           timestamp: 'number',
           embedding: 'vector[384]', // all-MiniLM-L6-v2 produces 384-dimensional vectors
+          // [NOT-57] Flattened flexible_metadata fields for efficient filtering
+          // These fields allow queries like: where: { "metadata.type": "video" }
+          'metadata.type': 'string', // Content type (video, repo, article, tweet, etc.)
+          'metadata.stars': 'number', // GitHub stars
+          'metadata.language': 'string', // Programming language (GitHub)
+          'metadata.duration': 'string', // Video duration (YouTube)
+          'metadata.channel': 'string', // YouTube channel
+          'metadata.author': 'string', // Author/creator
         };
 
         // [NOT-38] Try to restore existing index from IndexedDB
@@ -328,6 +361,9 @@ class VectorService {
       // Generate embedding
       const embedding = await this.generateEmbedding(textToEmbed);
 
+      // [NOT-57] Flatten flexible_metadata for Orama indexing
+      const flattenedMetadata = flattenMetadata(note.flexible_metadata || {});
+
       // Prepare document for Orama
       const doc = {
         id: note.id,
@@ -337,6 +373,7 @@ class VectorService {
         url: note.url || '',
         timestamp: note.timestamp || Date.now(),
         embedding: embedding,
+        ...flattenedMetadata, // [NOT-57] Spread flattened metadata fields (e.g., "metadata.type": "video")
       };
 
       // Insert into Orama (or update if exists)
@@ -433,6 +470,7 @@ class VectorService {
 
       // Clear existing index and create new one
       console.log('🗑️  Clearing existing index...');
+      // [NOT-57] Schema with flattened metadata fields
       const schema = {
         id: 'string',
         text: 'string',
@@ -441,6 +479,13 @@ class VectorService {
         url: 'string',
         timestamp: 'number',
         embedding: 'vector[384]',
+        // [NOT-57] Flattened flexible_metadata fields
+        'metadata.type': 'string',
+        'metadata.stars': 'number',
+        'metadata.language': 'string',
+        'metadata.duration': 'string',
+        'metadata.channel': 'string',
+        'metadata.author': 'string',
       };
       this.oramaDb = await this.oramaCreate({ schema });
 

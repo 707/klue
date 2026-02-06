@@ -845,8 +845,9 @@ body {
 .chat-mode {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1; /* [NOT-51] Use flex instead of height to avoid overlapping menu-bar */
   background: var(--color-surface);
+  overflow: hidden; /* [NOT-51] Prevent content from overflowing */
 }
 
 .chat-mode.hidden {
@@ -861,15 +862,18 @@ body {
   padding: var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
+  min-height: 56px; /* [NOT-51] Ensure header has minimum height */
 }
 
 /* [NOT-51] Chat Title - Replaces model selector for simplified UX */
 .chat-title {
   flex: 1;
   margin: 0;
+  padding: 0;
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
 }
 
 .clear-chat-button {

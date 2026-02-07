@@ -2793,7 +2793,22 @@ function setupLibraryEventListeners() {
         return;
       }
 
-      // Handle tag chip removal (click on X)
+      // [NOT-71] Handle tag chip click (toggle off when clicked)
+      if (target.classList.contains('stack-chip-tag')) {
+        const type = target.getAttribute('data-type');
+        const value = target.getAttribute('data-value');
+
+        if (type === 'tag' && value) {
+          toggleTagFilter(value);
+        } else if (type === 'starred') {
+          toggleSystemFilter('starred');
+        } else if (type === 'readLater') {
+          toggleSystemFilter('readLater');
+        }
+        return;
+      }
+
+      // Handle tag chip removal (click on X) - DEPRECATED: X icon removed in NOT-69
       if (target.classList.contains('remove')) {
         const chipElement = target.closest('.stack-chip');
         const type = chipElement?.getAttribute('data-type');
@@ -5105,7 +5120,22 @@ async function renderAIChatMode() {
         return;
       }
 
-      // Handle tag chip removal (click on X)
+      // [NOT-71] Handle tag chip click (toggle off when clicked)
+      if (target.classList.contains('stack-chip-tag')) {
+        const type = target.getAttribute('data-type');
+        const value = target.getAttribute('data-value');
+
+        if (type === 'tag' && value) {
+          toggleTagFilter(value);
+        } else if (type === 'starred') {
+          toggleSystemFilter('starred');
+        } else if (type === 'readLater') {
+          toggleSystemFilter('readLater');
+        }
+        return;
+      }
+
+      // Handle tag chip removal (click on X) - DEPRECATED: X icon removed in NOT-69
       if (target.classList.contains('remove')) {
         const chipElement = target.closest('.stack-chip');
         const type = chipElement?.getAttribute('data-type');
@@ -5132,7 +5162,7 @@ async function renderAIChatMode() {
 
       // [NOT-69] Handle Add button (show Stack Menu)
       if (target.classList.contains('stack-add-button')) {
-        // Open menu in current mode (no forced navigation)
+        // [NOT-71] Open menu in current mode (no forced navigation)
         toggleStackMenu();
         return;
       }

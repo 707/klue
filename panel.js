@@ -32,9 +32,6 @@ let previousMode = null; // [NOT-34] Track previous view for navigation after ca
 let allNotes = [];
 let filteredNotes = [];
 
-// [NOT-40] Gemini Nano availability state
-let geminiAvailable = false;
-
 // [NOT-33] Edit Mode State
 let isEditModeActive = false;
 let editModeNoteId = null;
@@ -63,9 +60,6 @@ let semanticMatches = [];
 
 // [NOT-22] Global TagInput instance for Capture Mode
 let captureTagInput = null;
-
-// [NOT-40] Gemini Status Polling
-let geminiStatusPollInterval = null;
 
 // Load persisted filter state
 async function loadFilterState() {
@@ -546,24 +540,16 @@ async function checkContextualRecall() {
     const pillText = pillElement?.querySelector('.pill-text');
     if (!pillElement || !pillText) return;
 
-    // [NOT-39] Display logic: handle exact, semantic, and hybrid states
-    if (exactCount > 0 && semanticCount > 0) {
-      // Hybrid state: both exact and semantic matches
-      contextMatchType = 'hybrid';
-      pillText.textContent = `${exactCount} Note${exactCount === 1 ? '' : 's'} + ${semanticCount} Related`;
-      showPillWithAnimation(pillElement, 'hybrid');
-    } else if (exactCount > 0) {
-      // Exact matches only
-      contextMatchType = 'exact';
-      pillText.textContent = `${exactCount} Note${exactCount === 1 ? '' : 's'} Here`;
-      showPillWithAnimation(pillElement, 'exact');
-    } else if (semanticCount > 0) {
-      // Semantic matches only
-      contextMatchType = 'semantic';
-      pillText.textContent = `Related: ${semanticCount} Note${semanticCount === 1 ? '' : 's'}`;
-      showPillWithAnimation(pillElement, 'pulse');
+    // [NOT-67] Unified context logic: Show pill if exact OR semantic matches exist
+    const totalRelated = exactCount + semanticCount;
+
+    if (totalRelated > 0) {
+      // Show pill with simple count
+      contextMatchType = exactCount > 0 ? 'exact' : 'semantic';
+      pillText.textContent = `${totalRelated} Related Note${totalRelated === 1 ? '' : 's'}`;
+      showPillWithAnimation(pillElement, contextMatchType === 'exact' ? 'exact' : 'pulse');
     } else if (domainCount > 0) {
-      // Domain matches (fallback)
+      // Domain matches (fallback) - keep existing behavior
       contextMatchType = 'domain';
       pillText.textContent = `${domainCount} Note${domainCount === 1 ? '' : 's'} on Site`;
       showPillWithAnimation(pillElement, 'exact');
@@ -581,7 +567,7 @@ async function checkContextualRecall() {
 /**
  * [NOT-31] [NOT-39] [NOT-48] Helper to show pill with one-time animation and appropriate state
  * @param {HTMLElement} pillElement - The pill element
- * @param {string} state - The state class to apply: 'pulse', 'hybrid', or 'exact'
+ * @param {string} state - The state class to apply: 'pulse' or 'exact'
  */
 function showPillWithAnimation(pillElement, state = 'exact') {
   pillElement.classList.remove('hidden');
@@ -589,17 +575,14 @@ function showPillWithAnimation(pillElement, state = 'exact') {
   // [NOT-48] Preserve active class if it was already present
   const wasActive = pillElement.classList.contains('active');
 
-  // [NOT-39] Remove all state classes first
-  pillElement.classList.remove('pulse', 'hybrid', 'active');
+  // [NOT-67] Remove state classes first (removed 'hybrid')
+  pillElement.classList.remove('pulse', 'active');
 
-  // [NOT-39] Apply the appropriate state class and icon
+  // [NOT-67] Apply the appropriate state class and icon
   const iconUse = pillElement.querySelector('.icon use');
   if (state === 'pulse') {
     pillElement.classList.add('pulse');
     if (iconUse) iconUse.setAttribute('href', '#icon-file-text');
-  } else if (state === 'hybrid') {
-    pillElement.classList.add('hybrid');
-    if (iconUse) iconUse.setAttribute('href', '#icon-sparkle'); // Sparkle icon for hybrid state
   } else {
     // exact or domain state
     if (iconUse) iconUse.setAttribute('href', '#icon-file-text');
@@ -762,8 +745,8 @@ async function handleContextPillClick() {
 
       const currentUrl = tab.url;
 
-      // [NOT-39] For semantic/hybrid states, just navigate and render hybrid view
-      if (contextMatchType === 'semantic' || contextMatchType === 'hybrid') {
+      // [NOT-39] [NOT-67] For semantic state, just navigate and render hybrid view
+      if (contextMatchType === 'semantic') {
         pillElement?.classList.add('active');
         await renderLibraryMode();
         // Hybrid view will be rendered automatically by renderNotesList
@@ -804,8 +787,8 @@ async function handleContextPillClick() {
 
       const currentUrl = tab.url;
 
-      // [NOT-39] For semantic/hybrid states, set active and render hybrid view
-      if (contextMatchType === 'semantic' || contextMatchType === 'hybrid') {
+      // [NOT-39] [NOT-67] For semantic state, set active and render hybrid view
+      if (contextMatchType === 'semantic') {
         pillElement?.classList.add('active');
         // Hybrid view will be rendered automatically by renderNotesList
         filterAndRenderNotes();
@@ -2962,8 +2945,8 @@ function renderNotesList() {
   const focusedElementSelector = activeElement?.className;
 
   // [NOT-48] Clear existing notes and sections (but keep empty states)
-  // Explicitly clear AI elements to prevent duplication on re-renders
-  const existingCards = notesListEl.querySelectorAll('.note-card, .insight-card, .hybrid-section-header, .ai-action-header, .synthesis-output');
+  // [NOT-67] Removed synthesis element references
+  const existingCards = notesListEl.querySelectorAll('.note-card, .insight-card, .hybrid-section-header');
   existingCards.forEach(card => card.remove());
 
   // Handle empty states
@@ -2974,10 +2957,11 @@ function renderNotesList() {
     return;
   }
 
-  // [NOT-39] Check if we should render hybrid view (semantic or hybrid context state with active pill)
+  // [NOT-39] Check if we should render hybrid view (semantic context state with active pill)
+  // [NOT-67] Removed 'hybrid' contextMatchType (no longer used)
   const pillElement = document.getElementById('context-pill');
   const isHybridViewActive = pillElement && pillElement.classList.contains('active') &&
-    (contextMatchType === 'semantic' || contextMatchType === 'hybrid');
+    contextMatchType === 'semantic';
 
   if (isHybridViewActive) {
     // Render hybrid view with sections
@@ -4688,31 +4672,9 @@ async function renderHybridView(notesListEl) {
 
     // Section 2: "Related Concepts" (if we have semantic matches)
     if (semanticMatches.length > 0) {
-      // [NOT-40] AI Action Header (Synthesize Connections)
-      const aiAction = document.createElement('button');
-      aiAction.className = 'ai-action-header';
-      aiAction.id = 'synthesize-button';
-      aiAction.innerHTML = `
-        <svg class="icon icon-sm" style="margin-right: 8px;">
-          <use href="#icon-sparkle"></use>
-        </svg>
-        <span>Synthesize Connections</span>
-      `;
-
-      // [NOT-40] Disable button if Gemini Nano is not available
-      if (!geminiAvailable) {
-        aiAction.disabled = true;
-        aiAction.classList.add('disabled');
-        aiAction.title = 'Enable Gemini Nano in Chrome flags to use this feature';
-        log('⚠️  [NOT-40] Synthesize button disabled - Gemini Nano unavailable');
-      } else {
-        aiAction.addEventListener('click', () => handleSynthesizeClick(semanticMatches));
-      }
-
-      notesListEl.appendChild(aiAction);
-
+      // [NOT-67] Simplified header without synthesis button
       const header2 = document.createElement('div');
-      header2.className = 'hybrid-section-header ai-section';
+      header2.className = 'hybrid-section-header';
       header2.textContent = 'Related Concepts';
       notesListEl.appendChild(header2);
 
@@ -4837,213 +4799,6 @@ async function handleRelatedNoteFeedback(noteId, cardElement) {
 }
 
 /**
- * [NOT-40] Handle Synthesize button click
- * Generates AI synthesis from current page context and related notes
- * @param {Array} semanticMatches - Array of semantic match results
- */
-async function handleSynthesizeClick(semanticMatches) {
-  log('✨ [NOT-40] Synthesize Connections clicked');
-
-  // Prevent multiple simultaneous syntheses
-  if (window.geminiService.isSynthesizing) {
-    log('⚠️  [NOT-40] Synthesis already in progress, ignoring click');
-    return;
-  }
-
-  const button = document.getElementById('synthesize-button');
-  if (!button) {
-    error('❌ [NOT-40] Synthesize button not found');
-    return;
-  }
-
-  try {
-    // Disable button and show loading state
-    button.disabled = true;
-    button.classList.add('loading');
-    const buttonText = button.querySelector('span');
-    const originalText = buttonText.textContent;
-    buttonText.textContent = 'Synthesizing...';
-
-    // Get current page context
-    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const currentContext = {
-      title: activeTab.title,
-      url: activeTab.url
-    };
-    log('📄 [NOT-40] Current context:', currentContext);
-
-    // Prepare related notes (already have them from semanticMatches)
-    const relatedNotes = semanticMatches.map(match => ({
-      note: match.note,
-      similarity: match.similarity
-    }));
-    log('📚 [NOT-40] Related notes:', relatedNotes.length);
-
-    // Generate synthesis using Gemini Nano
-    const stream = await window.geminiService.generateSynthesis(currentContext, relatedNotes);
-    log('🌊 [NOT-40] Stream received, starting output');
-
-    // Display streaming output
-    await displaySynthesisStream(stream, button);
-
-    // Re-enable button after completion
-    button.disabled = false;
-    button.classList.remove('loading');
-    buttonText.textContent = originalText;
-    log('✅ [NOT-40] Synthesis completed successfully');
-
-  } catch (error) {
-    error('❌ [NOT-40] Synthesis failed:', error);
-
-    // Show error message to user
-    const notesListEl = document.getElementById('notes-list');
-    const errorContainer = document.getElementById('synthesis-output');
-
-    if (errorContainer) {
-      errorContainer.innerHTML = `
-        <div class="synthesis-error">
-          <strong>Synthesis Failed</strong>
-          <p>${error.message || 'An unexpected error occurred. Please try again.'}</p>
-        </div>
-      `;
-    }
-
-    // Re-enable button
-    if (button) {
-      button.disabled = false;
-      button.classList.remove('loading');
-      const buttonText = button.querySelector('span');
-      if (buttonText) {
-        buttonText.textContent = 'Synthesize Connections';
-      }
-    }
-  }
-}
-
-/**
- * [NOT-40] Display streaming synthesis output
- * Consumes a ReadableStream and updates the DOM token-by-token
- * @param {ReadableStream} stream - The AI-generated text stream
- * @param {HTMLElement} button - The synthesize button element
- */
-async function displaySynthesisStream(stream, button) {
-  log('🌊 [NOT-40] Starting synthesis stream display');
-
-  const notesListEl = document.getElementById('notes-list');
-  if (!notesListEl) {
-    error('❌ [NOT-40] Notes list element not found');
-    return;
-  }
-
-  // Find or create synthesis output container
-  let outputContainer = document.getElementById('synthesis-output');
-  if (!outputContainer) {
-    outputContainer = document.createElement('div');
-    outputContainer.id = 'synthesis-output';
-    outputContainer.className = 'synthesis-output';
-
-    // Insert right after the synthesize button
-    if (button && button.nextSibling) {
-      notesListEl.insertBefore(outputContainer, button.nextSibling);
-    } else {
-      notesListEl.insertBefore(outputContainer, notesListEl.firstChild);
-    }
-  }
-
-  // Clear previous content and show streaming cursor
-  outputContainer.innerHTML = '<div class="synthesis-content streaming"></div>';
-  const contentDiv = outputContainer.querySelector('.synthesis-content');
-
-  try {
-    let fullText = '';
-
-    // Consume the stream token by token
-    for await (const chunk of stream) {
-      fullText += chunk;
-
-      // Update the DOM with formatted content
-      contentDiv.innerHTML = formatMarkdown(fullText) + '<span class="streaming-cursor"></span>';
-
-      // Scroll to keep the output visible
-      contentDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    // Remove streaming cursor when done
-    contentDiv.classList.remove('streaming');
-    contentDiv.innerHTML = formatMarkdown(fullText);
-
-    log('✅ [NOT-40] Stream display completed');
-  } catch (error) {
-    error('❌ [NOT-40] Error displaying stream:', error);
-    contentDiv.innerHTML = `<div class="synthesis-error">Error displaying synthesis: ${error.message}</div>`;
-  }
-}
-
-/**
- * [NOT-40] Format markdown text to HTML
- * Handles basic markdown: bold, lists, paragraphs
- * @param {string} text - Raw markdown text
- * @returns {string} - HTML string
- */
-function formatMarkdown(text) {
-  if (!text) return '';
-
-  // Escape HTML to prevent XSS
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  // Bold text: **text** or __text__
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-
-  // Italic text: *text* or _text_
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/_(.+?)_/g, '<em>$1</em>');
-
-  // Convert bullet points to list items
-  // Handle lines starting with - or *
-  const lines = html.split('\n');
-  let inList = false;
-  const processedLines = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    // Check if line is a bullet point
-    if (line.match(/^[-*]\s+/)) {
-      const content = line.replace(/^[-*]\s+/, '');
-
-      if (!inList) {
-        processedLines.push('<ul>');
-        inList = true;
-      }
-
-      processedLines.push(`<li>${content}</li>`);
-    } else {
-      // Not a bullet point
-      if (inList) {
-        processedLines.push('</ul>');
-        inList = false;
-      }
-
-      // Add as paragraph if not empty
-      if (line) {
-        processedLines.push(`<p>${line}</p>`);
-      }
-    }
-  }
-
-  // Close list if still open
-  if (inList) {
-    processedLines.push('</ul>');
-  }
-
-  return processedLines.join('');
-}
-
-/**
  * [NOT-39] Show a temporary tooltip notification
  * @param {HTMLElement} anchorElement - Element to position tooltip near
  * @param {string} message - Message to display
@@ -5093,11 +4848,7 @@ async function renderSettingsMode() {
   // [NOT-46] Set up OpenRouter API key handlers
   await setupOpenRouterSettings();
 
-  // [NOT-40] Load and display Gemini Nano status
-  await updateGeminiStatusDisplay();
-
-  // [NOT-40] Start polling for status updates if downloading
-  startGeminiStatusPolling();
+  // [NOT-67] Removed Gemini Nano settings
 }
 
 /**
@@ -5299,242 +5050,6 @@ async function setupOpenRouterSettings() {
 /**
  * [NOT-40] Update the Gemini Nano status display in settings
  */
-async function updateGeminiStatusDisplay() {
-  try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_GEMINI_STATUS' });
-    if (!response.success) {
-      error('[NOT-40] Failed to get Gemini status:', response.error);
-      return;
-    }
-
-    const status = response.status;
-    log('[NOT-40] Gemini status:', status);
-
-    const settingsContainer = document.getElementById('settings-mode');
-    const statusSection = settingsContainer.querySelector('.gemini-status-section') ||
-                          createGeminiStatusSection();
-
-    if (!settingsContainer.querySelector('.gemini-status-section')) {
-      // Clear placeholder and add status section
-      const emptyState = settingsContainer.querySelector('.empty-state');
-      if (emptyState) emptyState.remove();
-      settingsContainer.appendChild(statusSection);
-    }
-
-    updateStatusUI(statusSection, status);
-  } catch (error) {
-    error('[NOT-40] Error updating Gemini status:', error);
-  }
-}
-
-/**
- * [NOT-40] [NOT-43] Create the Gemini status section UI
- * Compact, modular layout that integrates seamlessly with other settings
- * @private
- */
-function createGeminiStatusSection() {
-  const section = document.createElement('div');
-  section.className = 'gemini-status-section';
-  section.innerHTML = `
-    <div class="settings-header">
-      <h2>AI Synthesis (Gemini Nano)</h2>
-      <p class="settings-description">On-device AI for generating insights from your notes</p>
-    </div>
-
-    <div class="status-card">
-      <div class="status-header">
-        <div class="status-icon"></div>
-        <div class="status-info">
-          <div class="status-title"></div>
-          <div class="status-message"></div>
-        </div>
-      </div>
-      <div class="status-progress hidden">
-        <div class="progress-bar">
-          <div class="progress-fill"></div>
-        </div>
-        <div class="progress-text"></div>
-      </div>
-      <div class="status-actions hidden">
-        <button id="initialize-gemini-button" class="primary-button">
-          Download Gemini Nano
-        </button>
-      </div>
-      <div class="status-error hidden">
-        <div class="error-message"></div>
-      </div>
-    </div>
-
-    <details class="settings-info">
-      <summary>Show system requirements</summary>
-      <div class="requirements-content">
-        <ul>
-          <li>Chrome 138+ (stable release)</li>
-          <li>22 GB free storage</li>
-          <li>16 GB RAM + 4 cores, OR 4 GB VRAM GPU</li>
-          <li>Windows 10+, macOS 13+, Linux, or ChromeOS</li>
-        </ul>
-      </div>
-    </details>
-  `;
-
-  // Wire up the initialize button
-  const initButton = section.querySelector('#initialize-gemini-button');
-  if (initButton) {
-    initButton.addEventListener('click', handleInitializeGemini);
-  }
-
-  return section;
-}
-
-/**
- * [NOT-40] Update the status UI based on current state
- * @private
- */
-function updateStatusUI(section, status) {
-  const statusIcon = section.querySelector('.status-icon');
-  const statusTitle = section.querySelector('.status-title');
-  const statusMessage = section.querySelector('.status-message');
-  const statusProgress = section.querySelector('.status-progress');
-  const progressFill = section.querySelector('.progress-fill');
-  const progressText = section.querySelector('.progress-text');
-  const statusActions = section.querySelector('.status-actions');
-  const statusError = section.querySelector('.status-error');
-  const errorMessage = section.querySelector('.error-message');
-
-  // Hide all optional elements by default
-  statusProgress.classList.add('hidden');
-  statusActions.classList.add('hidden');
-  statusError.classList.add('hidden');
-
-  switch (status.status) {
-    case 'ready':
-      statusIcon.textContent = '✅';
-      statusTitle.textContent = 'Ready';
-      statusMessage.textContent = 'Gemini Nano is installed and ready to synthesize your notes.';
-      break;
-
-    case 'downloading':
-      statusIcon.textContent = '📥';
-      statusTitle.textContent = 'Downloading...';
-      statusMessage.textContent = 'Gemini Nano is being downloaded. This may take a few minutes.';
-      statusProgress.classList.remove('hidden');
-      const percentage = Math.round(status.progress * 100);
-      progressFill.style.width = `${percentage}%`;
-      progressText.textContent = `${percentage}% complete`;
-      break;
-
-    case 'checking':
-      statusIcon.textContent = '🔍';
-      statusTitle.textContent = 'Checking...';
-      statusMessage.textContent = 'Checking if Gemini Nano is available on your system.';
-      break;
-
-    case 'unavailable':
-      statusIcon.textContent = '⚠️';
-      statusTitle.textContent = 'Not Available';
-      statusMessage.textContent = 'Gemini Nano is not available on this system.';
-      statusError.classList.remove('hidden');
-      errorMessage.textContent = status.error || 'System does not meet requirements.';
-      break;
-
-    case 'error':
-      statusIcon.textContent = '❌';
-      statusTitle.textContent = 'Error';
-      statusMessage.textContent = 'Failed to initialize Gemini Nano.';
-      statusError.classList.remove('hidden');
-      errorMessage.textContent = status.error || 'Unknown error occurred.';
-      statusActions.classList.remove('hidden');
-      break;
-
-    case 'unknown':
-    default:
-      statusIcon.textContent = '⏳';
-      statusTitle.textContent = 'Unknown';
-      statusMessage.textContent = 'Gemini Nano status has not been checked yet.';
-      statusActions.classList.remove('hidden');
-      break;
-  }
-}
-
-/**
- * [NOT-40] Handle Initialize Gemini button click
- */
-async function handleInitializeGemini() {
-  const button = document.getElementById('initialize-gemini-button');
-  if (!button) return;
-
-  const originalText = button.textContent;
-  button.disabled = true;
-  button.textContent = 'Initializing...';
-
-  try {
-    log('[NOT-40] Manually triggering Gemini Nano initialization...');
-    const response = await chrome.runtime.sendMessage({ action: 'INITIALIZE_GEMINI' });
-
-    if (!response.success) {
-      throw new Error(response.error || 'Initialization failed');
-    }
-
-    log('[NOT-40] Gemini Nano initialization triggered successfully');
-    await updateGeminiStatusDisplay();
-
-  } catch (error) {
-    error('[NOT-40] Failed to initialize Gemini Nano:', error);
-    alert(`Failed to initialize Gemini Nano: ${error.message}`);
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-  }
-}
-
-/**
- * [NOT-40] Start polling for Gemini status updates
- * Polls every 2 seconds while downloading or checking
- * Stops when status reaches a final state
- * @private
- */
-
-function startGeminiStatusPolling() {
-  // Clear any existing interval
-  if (geminiStatusPollInterval) {
-    clearInterval(geminiStatusPollInterval);
-  }
-
-  // Poll every 2 seconds
-  geminiStatusPollInterval = setInterval(async () => {
-    // Only poll if we're still on settings page
-    if (currentMode !== 'settings') {
-      clearInterval(geminiStatusPollInterval);
-      geminiStatusPollInterval = null;
-      log('[NOT-40] Stopped polling - left settings page');
-      return;
-    }
-
-    // Get current status
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'GET_GEMINI_STATUS' });
-      if (response.success) {
-        const status = response.status.status;
-
-        // Stop polling if we reached a final state
-        if (status === 'ready' || status === 'unavailable' || status === 'error') {
-          clearInterval(geminiStatusPollInterval);
-          geminiStatusPollInterval = null;
-          log(`[NOT-40] Stopped polling - final status reached: ${status}`);
-        }
-
-        // Update display
-        await updateGeminiStatusDisplay();
-      }
-    } catch (error) {
-      error('[NOT-40] Error polling Gemini status:', error);
-    }
-  }, 2000);
-}
-
-
-
 /**
  * [NOT-39] Render hybrid view with "From this Page" and "Related Concepts" sections
  * Used when context pill is clicked in semantic or hybrid state

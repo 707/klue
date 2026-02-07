@@ -612,22 +612,18 @@ async function renderStackContextBar(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // [NOT-73] Get pinned and scroll containers
-  const pinnedContainer = container.querySelector('.stack-pinned');
-  const scrollContainer = container.querySelector('.stack-scroll');
-  if (!pinnedContainer || !scrollContainer) return;
+  // [NOT-73] Completely clear and recreate the container structure to avoid duplicates
+  container.innerHTML = '';
 
-  // [NOT-73] Clear existing content (including any old direct children)
-  // Remove all direct children that aren't the pinned/scroll containers
-  Array.from(container.children).forEach(child => {
-    if (child !== pinnedContainer && child !== scrollContainer) {
-      child.remove();
-    }
-  });
+  // Create pinned and scroll containers
+  const pinnedContainer = document.createElement('div');
+  pinnedContainer.className = 'stack-pinned';
 
-  // Clear the child containers
-  pinnedContainer.innerHTML = '';
-  scrollContainer.innerHTML = '';
+  const scrollContainer = document.createElement('div');
+  scrollContainer.className = 'stack-scroll';
+
+  container.appendChild(pinnedContainer);
+  container.appendChild(scrollContainer);
 
   // Get current URL for "This Page" chip
   let currentUrl = null;

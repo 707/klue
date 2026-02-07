@@ -284,9 +284,7 @@
             <div id="search-loading" class="search-loading hidden">
               <span></span><span></span><span></span>
             </div>
-            <button id="expand-all-button" class="expand-all-button hidden" title="Expand all notes" aria-label="Expand all notes">
-              <svg class="icon icon-sm"><use href="#icon-maximize"></use></svg>
-            </button>
+            <!-- [NOT-74] expand-all-button removed - expand/collapse feature removed -->
           </div>
 
           <!-- [NOT-68] Search Escape Hatch -->
@@ -535,7 +533,8 @@
 
           <div class="note-tags"></div>
 
-          <div class="note-expanded-content hidden">
+          <!-- [NOT-74] Always show full content - hidden class removed -->
+          <div class="note-expanded-content">
             <div class="note-text-full"></div>
             <div class="note-metadata">
               <a class="note-link" href="" target="_blank">

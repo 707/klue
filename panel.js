@@ -1077,13 +1077,11 @@ async function togglePageContext() {
     if (isCurrentlyActive) {
       // Deactivate
       filterState.contextFilter = null;
-      setAllNotesExpanded(false);
+      // [NOT-74] setAllNotesExpanded removed
     } else {
       // Activate - use full URL for exact matching
       filterState.contextFilter = currentUrl;
-
-      // Auto-expand notes when activating context filter
-      setTimeout(() => setAllNotesExpanded(true), 0);
+      // [NOT-74] Auto-expand removed - notes always show full content now
     }
 
     // Save and re-render
@@ -2713,13 +2711,7 @@ async function navigateToLibrary() {
   }
 }
 
-/**
- * [NOT-16] Toggle expand/collapse state for all note cards
- */
-function handleToggleExpandAll() {
-  // Toggle state and apply
-  setAllNotesExpanded(!isExpandedAll);
-}
+// [NOT-74] handleToggleExpandAll removed - expand/collapse feature removed
 
 // =============================================================================
 // @LIBRARY - List rendering, filtering, sorting
@@ -2735,22 +2727,7 @@ async function renderLibraryMode() {
   // Hide loading
   document.getElementById('loading').classList.add('hidden');
 
-  // Show library-specific expand button
-  const expandButton = document.getElementById('expand-all-button');
-  if (expandButton) expandButton.classList.remove('hidden');
-
-  // [NOT-31] Preserve expand state if context filter is active, otherwise reset
-  if (!filterState.contextFilter) {
-    isExpandedAll = false;
-    if (expandButton) {
-      const iconUse = expandButton.querySelector('use');
-      if (iconUse) {
-        iconUse.setAttribute('href', '#icon-maximize');
-        expandButton.setAttribute('title', 'Expand all notes');
-        expandButton.setAttribute('aria-label', 'Expand all notes');
-      }
-    }
-  }
+  // [NOT-74] Expand button removed - expand/collapse feature removed
 
   // Load notes from IndexedDB
   allNotes = await window.database.getAllNotes();
@@ -2783,12 +2760,7 @@ function setupLibraryEventListeners() {
   const filterInput = document.getElementById('filter-input');
   const filterDropdown = document.getElementById('filter-dropdown');
   // [NOT-69] clear-all-filters button removed - now using Stack Menu
-
-  // [NOT-16] Expand all button
-  const expandAllButton = document.getElementById('expand-all-button');
-  if (expandAllButton) {
-    expandAllButton.addEventListener('click', handleToggleExpandAll);
-  }
+  // [NOT-74] Expand all button removed - expand/collapse feature removed
 
   // [NOT-68] Stack Context Bar event delegation
   const libraryStackContext = document.getElementById('library-stack-context');
@@ -3594,29 +3566,7 @@ function createNoteCard(note, index = 0) {
     noteLinkEl.style.cursor = 'not-allowed';
   }
 
-  // [NOT-26] Toggle expand/collapse only on header empty space click
-  const cardHeader = card.querySelector('.note-card-header');
-  cardHeader.addEventListener('click', (e) => {
-    // Only toggle if clicking on the header itself or .note-source container
-    // Don't toggle if clicking on buttons, links, or other interactive elements
-    const isButton = e.target.closest('button');
-    const isLink = e.target.closest('a');
-    const isInteractive = isButton || isLink;
-
-    if (!isInteractive) {
-      card.classList.toggle('expanded');
-      card.setAttribute('aria-expanded', card.classList.contains('expanded'));
-    }
-  });
-
-  // Keyboard interaction for note card
-  card.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      card.classList.toggle('expanded');
-      card.setAttribute('aria-expanded', card.classList.contains('expanded'));
-    }
-  });
+  // [NOT-74] Expand/collapse feature removed - notes always show full content
 
   // [NOT-35] Star button
   const starButton = card.querySelector('.star-button');
@@ -5598,39 +5548,7 @@ function formatDate(timestamp) {
   });
 }
 
-/**
- * [NOT-31] Expand or collapse all note cards with proper UI updates
- * @param {boolean} expand - True to expand, false to collapse
- */
-function setAllNotesExpanded(expand) {
-  isExpandedAll = expand;
-
-  const noteCards = document.querySelectorAll('.note-card');
-  noteCards.forEach(card => {
-    if (expand) {
-      card.classList.add('expanded');
-      card.setAttribute('aria-expanded', 'true');
-    } else {
-      card.classList.remove('expanded');
-      card.setAttribute('aria-expanded', 'false');
-    }
-  });
-
-  // Update expand button icon
-  const expandButton = document.getElementById('expand-all-button');
-  if (expandButton) {
-    const iconUse = expandButton.querySelector('use');
-    if (expand) {
-      iconUse?.setAttribute('href', '#icon-minimize');
-      expandButton.setAttribute('title', 'Collapse all notes');
-      expandButton.setAttribute('aria-label', 'Collapse all notes');
-    } else {
-      iconUse?.setAttribute('href', '#icon-maximize');
-      expandButton.setAttribute('title', 'Expand all notes');
-      expandButton.setAttribute('aria-label', 'Expand all notes');
-    }
-  }
-}
+// [NOT-74] setAllNotesExpanded removed - expand/collapse feature removed
 
 // =============================================================================
 // @INIT - Global Event Listeners & Boot

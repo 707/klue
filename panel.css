@@ -1763,15 +1763,9 @@ body {
   pointer-events: none;
 }
 
+/* [NOT-74] Hide preview - always show full content */
 .note-text-preview {
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-md);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: none;
 }
 
 .note-user-note {
@@ -1811,7 +1805,9 @@ body {
   transform: translateY(-1px);
 }
 
+/* [NOT-74] Always show full content */
 .note-expanded-content {
+  display: block !important;
   margin-top: var(--spacing-md);
   padding-top: var(--spacing-md);
   border-top: 1px solid var(--color-border);
@@ -1842,13 +1838,7 @@ body {
   text-decoration: underline;
 }
 
-.note-card.expanded .note-text-preview {
-  display: none;
-}
-
-.note-card.expanded .note-expanded-content {
-  display: block;
-}
+/* [NOT-74] Expanded class removed - notes always show full content */
 
 /* [NOT-20] [NOT-26] Link Styles - Subtle styling for preserved hyperlinks */
 .text-preview a,

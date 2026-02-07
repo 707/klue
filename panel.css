@@ -855,25 +855,13 @@ body {
   gap: var(--spacing-sm);
   flex-grow: 1;
   overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border) transparent;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
 }
 
+/* Hide scrollbar for Chrome/Safari */
 .stack-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-
-.stack-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.stack-scroll::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: var(--radius-full);
-}
-
-.stack-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border-medium);
+  display: none;
 }
 
 /* [NOT-68] Base Stack Chip Styles */

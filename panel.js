@@ -2773,7 +2773,7 @@ async function renderLibraryMode() {
 function setupLibraryEventListeners() {
   const filterInput = document.getElementById('filter-input');
   const filterDropdown = document.getElementById('filter-dropdown');
-  const clearAllButton = document.getElementById('clear-all-filters');
+  // [NOT-69] clear-all-filters button removed - now using Stack Menu
 
   // [NOT-16] Expand all button
   const expandAllButton = document.getElementById('expand-all-button');
@@ -2966,39 +2966,7 @@ function setupLibraryEventListeners() {
     }
   });
 
-  // Clear All Filters button
-  clearAllButton.addEventListener('click', () => {
-    filterState.search = '';
-    filterState.sort = 'newest';
-    filterState.tags = [];
-    filterState.readLater = false; // [NOT-18] Reset Read Later filter
-    filterState.starred = false; // [NOT-35] Reset Starred filter
-    filterState.contextFilter = null; // [NOT-31] Reset context filter
-    filterInput.value = '';
-
-    // [NOT-31] Reset context pill active state
-    const contextPill = document.getElementById('context-pill');
-    if (contextPill) {
-      contextPill.classList.remove('active');
-    }
-
-    // [NOT-31] Reset expand all state
-    isExpandedAll = false;
-    const expandButton = document.getElementById('expand-all-button');
-    if (expandButton) {
-      const iconUse = expandButton.querySelector('use');
-      if (iconUse) {
-        iconUse.setAttribute('href', '#icon-maximize');
-        expandButton.setAttribute('title', 'Expand all notes');
-        expandButton.setAttribute('aria-label', 'Expand all notes');
-      }
-    }
-
-    filterAndRenderNotes();
-    // [NOT-69] renderActiveFilters() removed
-    updateFilterDropdownActiveStates();
-    saveFilterState();
-  });
+  // [NOT-69] Clear All Filters button removed - filters now managed through Stack Menu
 
   // [NOT-68] Search escape hatch - "Search all notes" button
   const searchAllNotesButton = document.getElementById('search-all-notes-button');

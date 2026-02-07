@@ -1134,19 +1134,46 @@ function toggleSystemFilter(type) {
 
 /**
  * [NOT-34] Navigate to a specific view and update header button states
+ * [NOT-75] Added smooth fade transition between views
  * @param {string} viewId - The view to navigate to (library-mode, ai-chat-mode, settings-mode, capture-mode)
  */
-function navigateToView(viewId) {
-  // Hide all views
+async function navigateToView(viewId) {
   const views = ['library-mode', 'ai-chat-mode', 'settings-mode', 'capture-mode'];
-  views.forEach(view => {
+
+  // [NOT-75] Find currently visible view
+  const currentView = views.find(view => {
     const element = document.getElementById(view);
-    if (element) element.classList.add('hidden');
+    return element && !element.classList.contains('hidden');
   });
 
-  // Show target view
+  // [NOT-75] Apply fade-out to current view
+  if (currentView) {
+    const currentElement = document.getElementById(currentView);
+    if (currentElement) {
+      currentElement.classList.add('fade-out');
+      // Wait for fade-out animation
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+  }
+
+  // Hide all views and remove fade classes
+  views.forEach(view => {
+    const element = document.getElementById(view);
+    if (element) {
+      element.classList.add('hidden');
+      element.classList.remove('fade-out', 'fade-in');
+    }
+  });
+
+  // Show target view with fade-in
   const targetView = document.getElementById(viewId);
-  if (targetView) targetView.classList.remove('hidden');
+  if (targetView) {
+    targetView.classList.remove('hidden');
+    // Use requestAnimationFrame to ensure CSS transition triggers
+    requestAnimationFrame(() => {
+      targetView.classList.add('fade-in');
+    });
+  }
 
   // Update button active states (only for non-capture modes)
   if (viewId !== 'capture-mode') {
@@ -2840,9 +2867,9 @@ function setupLibraryEventListeners() {
       }
     });
 
-    // Send message on Cmd/Ctrl + Enter
+    // [NOT-75] Send message on Enter (Shift+Enter for line breaks)
     assistantInput.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         if (assistantInput.value.trim()) {
           handleSendAssistantMessage();

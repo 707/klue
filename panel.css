@@ -1443,11 +1443,12 @@ body {
 }
 
 /* Note Card */
+/* [NOT-91] Compact note card with reduced padding for dense list view */
 .note-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
   cursor: pointer;
   /* [NOT-23] Use motion tokens */
   transition: all var(--duration-micro) var(--ease-out-spring);
@@ -1477,22 +1478,24 @@ body {
   background: var(--color-surface-secondary);
 }
 
-/* [NOT-29] Media Object Layout: thumbnail on left, content on right */
+/* [NOT-91] Compact layout: content left, thumbnail right */
 .note-card-body {
   display: flex;
   gap: var(--spacing-md);
+  align-items: flex-start;
 }
 
-/* [NOT-29] Image Thumbnail Container */
+/* [NOT-91] Compact image thumbnail (60x60px) on right side */
 .note-thumbnail {
   flex-shrink: 0;
-  width: 100px;
-  height: 100px;
+  width: 60px;
+  height: 60px;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface-secondary);
   cursor: pointer;
   transition: all var(--duration-micro) var(--ease-out-spring);
+  order: 2; /* Position on right */
 }
 
 .note-thumbnail:hover {
@@ -1507,17 +1510,22 @@ body {
   display: block;
 }
 
-/* [NOT-29] Content wrapper takes remaining space */
+/* [NOT-91] Content wrapper on left, takes remaining space */
 .note-content {
   flex: 1;
   min-width: 0; /* Allows text to wrap properly in flex container */
+  order: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
+/* [NOT-91] Compact header with reduced spacing */
 .note-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
   gap: var(--spacing-sm);
 }
 
@@ -1794,22 +1802,26 @@ body {
   pointer-events: none;
 }
 
-/* [NOT-74] Hide preview - always show full content */
-.note-text-preview {
+/* [NOT-91] Unified preview shows userNote or captured text (2-3 lines truncated) */
+.note-preview {
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-preview:empty {
   display: none;
 }
 
-.note-user-note {
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  background: var(--color-surface-secondary);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.note-user-note:empty {
+/* [NOT-91] Hide old elements that are now in the detail modal */
+.note-text-preview,
+.note-user-note,
+.note-expanded-content {
   display: none;
 }
 
@@ -3081,5 +3093,196 @@ input:focus-visible,
     border-color: rgba(139, 92, 246, 0.5);
     box-shadow: 0 0 0 4px var(--color-ai-surface);
   }
+}
+
+
+/* [NOT-91] Note Detail Modal - Full content view */
+.note-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-detail-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: enter-scale var(--duration-base) var(--ease-out-spring);
+}
+
+.note-detail-content {
+  position: relative;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  animation: enter-scale var(--duration-base) var(--ease-out-spring);
+  display: flex;
+  flex-direction: column;
+}
+
+.note-detail-close {
+  position: absolute;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  padding: var(--spacing-sm);
+  background: var(--color-surface-hover);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-micro) var(--ease-out-spring);
+  z-index: 10;
+}
+
+.note-detail-close:hover {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  transform: scale(1.1);
+}
+
+.note-detail-close:active {
+  transform: scale(0.95);
+}
+
+.note-detail-scroll {
+  overflow-y: auto;
+  padding: var(--spacing-2xl);
+  padding-right: calc(var(--spacing-2xl) + 48px); /* Space for close button */
+}
+
+.note-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.note-detail-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  color: inherit;
+  width: fit-content;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-left: calc(-1 * var(--spacing-sm));
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.note-detail-source-link:hover {
+  background: var(--color-surface-hover);
+}
+
+.note-detail-source-link:hover .note-detail-site-name {
+  color: var(--color-primary);
+}
+
+.note-detail-favicon {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+}
+
+.note-detail-site-name {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.note-detail-date {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-left: var(--spacing-sm);
+}
+
+.note-detail-section-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.note-detail-user-note-section,
+.note-detail-captured-section,
+.note-detail-tags-section,
+.note-detail-images-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.note-detail-user-note {
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-base);
+  color: var(--color-text-primary);
+  background: var(--color-surface-secondary);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+}
+
+.note-detail-captured-text {
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+
+.note-detail-tags {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.note-detail-tag {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.note-detail-tag:hover {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+}
+
+.note-detail-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.note-detail-image {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-micro) var(--ease-out-spring);
+}
+
+.note-detail-image:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
 }
 

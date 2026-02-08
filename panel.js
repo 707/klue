@@ -3586,22 +3586,14 @@ function createNoteCard(note, index = 0) {
     }
   });
 
-  // [NOT-20] Populate text preview with sanitized HTML and smart chips
-  const textPreview = card.querySelector('.note-text-preview');
-  let safeHtml = sanitizeHtml(note.html || note.text);
-  safeHtml = enhanceRichMedia(safeHtml);
-  if (safeHtml) {
-    textPreview.innerHTML = safeHtml;
-  } else {
-    // Fallback to plain text if HTML is empty
-    textPreview.textContent = note.text;
-  }
-
-  // Populate user note (if exists)
+  // [NOT-91] Unified preview: Show userNote first if it exists, otherwise captured text
+  const notePreview = card.querySelector('.note-preview');
   if (note.userNote) {
-    card.querySelector('.note-user-note').textContent = note.userNote;
-  } else {
-    card.querySelector('.note-user-note').style.display = 'none';
+    // Show user note as preview
+    notePreview.textContent = note.userNote;
+  } else if (note.text) {
+    // Show captured text as preview
+    notePreview.textContent = note.text;
   }
 
   // [NOT-26] Populate tags with click-to-filter functionality
@@ -3649,18 +3641,16 @@ function createNoteCard(note, index = 0) {
     tagsContainer.style.display = 'none';
   }
 
-  // [NOT-20] Populate expanded content with sanitized HTML and smart chips
-  const textFull = card.querySelector('.note-text-full');
-  // Note: safeHtml is already enhanced with smart chips from above
-  if (safeHtml) {
-    textFull.innerHTML = safeHtml;
-  } else {
-    // Fallback to plain text if HTML is empty
-    textFull.textContent = note.text;
-  }
+  // [NOT-91] Expanded content removed - now shown in detail modal instead
 
-
-  // [NOT-74] Expand/collapse feature removed - notes always show full content
+  // [NOT-91] Add click listener to card to open detail modal (excluding action buttons)
+  card.addEventListener('click', (e) => {
+    // Don't open modal if clicking action buttons
+    if (e.target.closest('.note-actions') || e.target.closest('.note-thumbnail') || e.target.closest('.note-tag') || e.target.closest('.note-source-link')) {
+      return;
+    }
+    openNoteDetailModal(note);
+  });
 
   // [NOT-35] Star button
   const starButton = card.querySelector('.star-button');
@@ -4670,6 +4660,185 @@ function closeLightbox() {
   }
 
   lightbox.classList.add('hidden');
+}
+
+/**
+ * [NOT-91] Open the detail modal to show full note content
+ * Displays large title, date, source, full user note, full captured text, tags, and image gallery
+ *
+ * @param {Object} note - The note object to display
+ */
+function openNoteDetailModal(note) {
+  log('📄 [NOT-91] Opening note detail modal');
+
+  const modal = document.getElementById('note-detail-modal');
+  const closeButton = modal.querySelector('.note-detail-close');
+  const backdrop = modal.querySelector('.note-detail-backdrop');
+
+  // Populate header
+  modal.querySelector('.note-detail-favicon').src = note.metadata.favicon;
+  modal.querySelector('.note-detail-site-name').textContent = note.metadata.title || note.metadata.siteName;
+  modal.querySelector('.note-detail-date').textContent = formatDate(note.timestamp);
+
+  // Validate and set source link
+  const sourceLink = modal.querySelector('.note-detail-source-link');
+  try {
+    const noteUrl = note.url ? note.url.trim() : '';
+    if (!noteUrl) {
+      sourceLink.href = '#';
+      sourceLink.style.cursor = 'default';
+    } else {
+      const url = new URL(noteUrl, window.location.origin);
+      const protocol = url.protocol.toLowerCase();
+      if (protocol === 'http:' || protocol === 'https:') {
+        sourceLink.href = noteUrl;
+      } else {
+        sourceLink.href = '#';
+        sourceLink.style.cursor = 'not-allowed';
+      }
+    }
+  } catch (e) {
+    sourceLink.href = '#';
+    sourceLink.style.cursor = 'not-allowed';
+  }
+
+  // Populate user note section
+  const userNoteSection = modal.querySelector('.note-detail-user-note-section');
+  if (note.userNote) {
+    modal.querySelector('.note-detail-user-note').textContent = note.userNote;
+    userNoteSection.classList.remove('hidden');
+  } else {
+    userNoteSection.classList.add('hidden');
+  }
+
+  // Populate captured content section
+  const capturedSection = modal.querySelector('.note-detail-captured-section');
+  if (note.text) {
+    modal.querySelector('.note-detail-captured-text').textContent = note.text;
+    capturedSection.classList.remove('hidden');
+  } else {
+    capturedSection.classList.add('hidden');
+  }
+
+  // Populate tags section
+  const tagsSection = modal.querySelector('.note-detail-tags-section');
+  const tagsContainer = modal.querySelector('.note-detail-tags');
+  if (note.tags && note.tags.length > 0) {
+    tagsContainer.innerHTML = ''; // Clear existing tags
+    note.tags.forEach(tag => {
+      const tagEl = document.createElement('span');
+      tagEl.className = 'note-detail-tag';
+      tagEl.textContent = tag;
+
+      // Add click listener to close modal and filter by tag
+      tagEl.addEventListener('click', () => {
+        closeNoteDetailModal();
+
+        // Check if tag is already in filter
+        const existingTagIndex = filterState.tags.findIndex(
+          filterTag => filterTag.toLowerCase() === tag.toLowerCase()
+        );
+
+        if (existingTagIndex === -1) {
+          // Add tag to filter if not present
+          filterState.tags.push(tag);
+          filterAndRenderNotes();
+          updateFilterDropdownActiveStates();
+          saveFilterState();
+        }
+      });
+
+      tagsContainer.appendChild(tagEl);
+    });
+    tagsSection.classList.remove('hidden');
+  } else {
+    tagsSection.classList.add('hidden');
+  }
+
+  // Populate images section
+  const imagesSection = modal.querySelector('.note-detail-images-section');
+  const imagesContainer = modal.querySelector('.note-detail-images');
+  const hasImages = note.images && note.images.length > 0;
+  const hasLegacyImage = note.imageData && typeof note.imageData === 'string';
+
+  if (hasImages || hasLegacyImage) {
+    imagesContainer.innerHTML = ''; // Clear existing images
+
+    // Get images array (support both new and legacy format)
+    let images = [];
+    if (hasImages) {
+      images = note.images;
+    } else if (hasLegacyImage) {
+      images = [{ id: 'legacy', data: note.imageData, timestamp: note.timestamp || Date.now() }];
+    }
+
+    images.forEach((image, index) => {
+      const imgEl = document.createElement('img');
+      imgEl.className = 'note-detail-image';
+      imgEl.src = image.data;
+      imgEl.alt = `Note image ${index + 1}`;
+
+      // Add click listener to open lightbox
+      imgEl.addEventListener('click', () => {
+        openLightbox(images, index);
+      });
+
+      imagesContainer.appendChild(imgEl);
+    });
+
+    imagesSection.classList.remove('hidden');
+  } else {
+    imagesSection.classList.add('hidden');
+  }
+
+  // Close handlers
+  const handleClose = () => {
+    closeNoteDetailModal();
+  };
+
+  const handleBackdropClick = (e) => {
+    if (e.target === backdrop) {
+      closeNoteDetailModal();
+    }
+  };
+
+  const handleKeyboard = (e) => {
+    if (e.key === 'Escape') {
+      closeNoteDetailModal();
+    }
+  };
+
+  // Add event listeners
+  closeButton.addEventListener('click', handleClose);
+  backdrop.addEventListener('click', handleBackdropClick);
+  document.addEventListener('keydown', handleKeyboard);
+
+  // Store cleanup function
+  modal._cleanup = () => {
+    closeButton.removeEventListener('click', handleClose);
+    backdrop.removeEventListener('click', handleBackdropClick);
+    document.removeEventListener('keydown', handleKeyboard);
+  };
+
+  // Show modal
+  modal.classList.remove('hidden');
+}
+
+/**
+ * [NOT-91] Close the note detail modal
+ */
+function closeNoteDetailModal() {
+  log('❌ [NOT-91] Closing note detail modal');
+
+  const modal = document.getElementById('note-detail-modal');
+
+  // Clean up event listeners
+  if (modal._cleanup) {
+    modal._cleanup();
+    delete modal._cleanup;
+  }
+
+  modal.classList.add('hidden');
 }
 
 /**

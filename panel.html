@@ -508,6 +508,7 @@
   </div>
 
   <!-- Hidden template for note cards -->
+  <!-- [NOT-91] Compact note card template with thumbnail on right, preview only (no expanded content) -->
   <template id="note-card-template">
     <div class="note-card" data-note-id="">
       <div class="note-card-header">
@@ -535,25 +536,19 @@
         </div>
       </div>
 
-      <!-- [NOT-29] Media object layout: thumbnail on left, content on right -->
+      <!-- [NOT-91] Compact body layout: content left, thumbnail right -->
       <div class="note-card-body">
-        <!-- [NOT-29] Image thumbnail (hidden by default, shown for image notes) -->
-        <div class="note-thumbnail hidden">
-          <img src="" alt="Note thumbnail">
-        </div>
-
-        <!-- Content wrapper for text/notes/tags -->
+        <!-- Content wrapper for preview and tags -->
         <div class="note-content">
-          <div class="note-text-preview"></div>
-
-          <div class="note-user-note"></div>
+          <!-- [NOT-91] Unified preview (shows userNote or captured text) -->
+          <div class="note-preview"></div>
 
           <div class="note-tags"></div>
+        </div>
 
-          <!-- [NOT-74] Always show full content - hidden class removed -->
-          <div class="note-expanded-content">
-            <div class="note-text-full"></div>
-          </div>
+        <!-- [NOT-91] Image thumbnail on right (60x60px, hidden by default) -->
+        <div class="note-thumbnail hidden">
+          <img src="" alt="Note thumbnail">
         </div>
       </div>
     </div>
@@ -602,6 +597,51 @@
       <button class="lightbox-download" title="Download image" aria-label="Download image">
         <svg class="icon icon-sm"><use href="#icon-download"></use></svg>
       </button>
+    </div>
+  </div>
+
+  <!-- [NOT-91] Note Detail Modal - Full content view -->
+  <div id="note-detail-modal" class="note-detail-modal hidden">
+    <div class="note-detail-backdrop"></div>
+    <div class="note-detail-content">
+      <button class="note-detail-close" title="Close" aria-label="Close note details">
+        <svg class="icon icon-md"><use href="#icon-x"></use></svg>
+      </button>
+
+      <div class="note-detail-scroll">
+        <!-- Header with source info -->
+        <div class="note-detail-header">
+          <a class="note-detail-source-link" href="" target="_blank" rel="noopener noreferrer">
+            <img class="note-detail-favicon" src="" alt="">
+            <span class="note-detail-site-name"></span>
+          </a>
+          <span class="note-detail-date"></span>
+        </div>
+
+        <!-- User Note Section -->
+        <div class="note-detail-user-note-section hidden">
+          <div class="note-detail-section-label">Your Notes</div>
+          <div class="note-detail-user-note"></div>
+        </div>
+
+        <!-- Captured Content Section -->
+        <div class="note-detail-captured-section hidden">
+          <div class="note-detail-section-label">Captured Content</div>
+          <div class="note-detail-captured-text"></div>
+        </div>
+
+        <!-- Tags Section -->
+        <div class="note-detail-tags-section hidden">
+          <div class="note-detail-section-label">Tags</div>
+          <div class="note-detail-tags"></div>
+        </div>
+
+        <!-- Image Gallery Section -->
+        <div class="note-detail-images-section hidden">
+          <div class="note-detail-section-label">Images</div>
+          <div class="note-detail-images"></div>
+        </div>
+      </div>
     </div>
   </div>
 

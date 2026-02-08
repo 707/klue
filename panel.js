@@ -2727,11 +2727,11 @@ async function handlePulsePillClick() {
 
     log('📦 [NOT-59] Updated flexible_metadata:', clipData.metadata.flexible_metadata);
 
-    // [NOT-59] Update the UI to reflect enhanced metadata
+    // [NOT-59] [NOT-83] Update the UI to reflect enhanced metadata
     // Re-render the dynamic source bar to show new metadata
-    const sourceBar = document.querySelector('.source-bar');
-    if (sourceBar) {
-      renderDynamicSourceBar(clipData, sourceBar);
+    const sourceCardHeader = document.querySelector('.source-card-header');
+    if (sourceCardHeader) {
+      renderDynamicSourceBar(clipData, sourceCardHeader);
     }
 
     // State B -> C: Processing to Done

@@ -1820,9 +1820,10 @@ class TagInput {
 
   /**
    * [NOT-84] Handle document click to close popover when clicking outside
+   * Closes when clicking anywhere outside the popover itself (including the container area)
    */
   handleDocumentClick(e) {
-    if (this.isPopoverOpen && !this.wrapper.contains(e.target)) {
+    if (this.isPopoverOpen && !this.popover.contains(e.target)) {
       this.closePopover();
     }
   }

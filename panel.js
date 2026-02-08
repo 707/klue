@@ -4146,21 +4146,16 @@ function handleEnterEditMode(noteId, cardElement) {
     addImageButton.classList.toggle('active', !isHidden);
   });
 
-  // Close dropdown when clicking outside
+  // [NOT-84] Close dropdown when clicking outside (within edit form context)
   const closeDropdown = (e) => {
     if (!addImageMenuWrapper.contains(e.target)) {
       imageMenuDropdown.classList.add('hidden');
       addImageButton.classList.remove('active');
     }
   };
-  setTimeout(() => {
-    document.addEventListener('click', closeDropdown);
-  }, 100);
 
   // Store cleanup function
-  cardElement._cleanupImageMenu = () => {
-    document.removeEventListener('click', closeDropdown);
-  };
+  cardElement._cleanupImageMenu = closeDropdown;
 
   addImageMenuWrapper.appendChild(addImageButton);
   addImageMenuWrapper.appendChild(imageMenuDropdown);
@@ -4204,7 +4199,13 @@ function handleEnterEditMode(noteId, cardElement) {
   renderEditModeImageGallery(cardElement, editModeImages);
 
   // [NOT-19] Prevent edit form clicks from triggering card expand/collapse
-  editForm.addEventListener('click', (e) => e.stopPropagation());
+  editForm.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // [NOT-84] Also handle closing image menu dropdown
+    if (cardElement._cleanupImageMenu) {
+      cardElement._cleanupImageMenu(e);
+    }
+  });
 
   // [NOT-33] Insert form after the note-card-body for better space utilization
   // This places the edit form below the thumbnail/title area
@@ -4393,12 +4394,9 @@ function handleCancelEdit(noteId, cardElement) {
   // Remove edit mode class
   cardElement.classList.remove('editing');
 
-  // [NOT-22] [NOT-84] Clean up TagInput reference and event listeners
+  // [NOT-22] [NOT-84] Clean up TagInput reference and image menu handler
   delete cardElement._editTagInput;
-  if (cardElement._cleanupImageMenu) {
-    cardElement._cleanupImageMenu();
-    delete cardElement._cleanupImageMenu;
-  }
+  delete cardElement._cleanupImageMenu;
 
   // Remove edit form
   const editForm = cardElement.querySelector('.note-edit-form');

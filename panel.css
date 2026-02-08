@@ -303,17 +303,27 @@ body {
   background: var(--color-surface-secondary);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   z-index: 1;
   display: block;
+  min-height: 80px;
 }
 
 .source-card-header {
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-md);
+  min-height: 40px;
+}
+
+.source-card-body {
+  display: block !important;
+  padding: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+  min-height: 40px;
 }
 
 .favicon {
@@ -345,12 +355,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-top: 2px;
-}
-
-.source-card-body {
-  padding: var(--spacing-md);
-  padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--color-border);
 }
 
 .source-card-label {

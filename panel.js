@@ -1165,6 +1165,8 @@ function toggleTagFilter(tag) {
   // Save and re-render
   saveFilterState();
   filterAndRenderNotes();
+  // Update stack context bars to reflect the new filter state
+  updateContextBars();
 }
 
 /**
@@ -1182,6 +1184,8 @@ function toggleSystemFilter(type) {
   // Save and re-render
   saveFilterState();
   filterAndRenderNotes();
+  // Update stack context bars to reflect the new filter state
+  updateContextBars();
 }
 
 /**

@@ -228,9 +228,39 @@
         ></textarea>
       </div>
 
+      <!-- [NOT-84] Combined Tags and Images section without labels -->
       <div class="input-section">
-        <label class="section-label">Tags</label>
-        <div id="capture-tags-container"></div>
+        <div class="tags-images-row">
+          <div id="capture-tags-container" class="tags-section"></div>
+
+          <!-- [NOT-83] [NOT-84] Consolidated Add Image Menu -->
+          <div class="add-image-menu-wrapper">
+            <button id="add-image-menu-button" class="add-image-menu-button" type="button" title="Add images">
+              <svg class="icon icon-sm"><use href="#icon-image"></use></svg>
+              <span>Add Image</span>
+              <svg class="icon icon-xs chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div id="image-menu-dropdown" class="image-menu-dropdown hidden">
+              <button class="image-menu-item" data-action="upload" type="button">
+                <svg class="icon icon-sm"><use href="#icon-upload"></use></svg>
+                <span>Upload from Device</span>
+              </button>
+              <button class="image-menu-item" data-action="capture" type="button">
+                <svg class="icon icon-sm"><use href="#icon-image"></use></svg>
+                <span>Capture from Webpage</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- [NOT-33] Hidden file input for uploads -->
+        <input type="file" id="image-upload-input" accept="image/*" multiple class="hidden" aria-label="Upload images">
+
+        <!-- [NOT-33] Image Preview List (thumbnails) -->
+        <div id="capture-image-preview-list" class="image-preview-list hidden"></div>
+
         <div class="input-hint">Press Cmd+Enter to save</div>
       </div>
 
@@ -241,37 +271,6 @@
           <span class="pulse-pill-text">Analyze Page</span>
           <svg class="pulse-pill-check icon icon-sm hidden"><use href="#icon-check"></use></svg>
         </button>
-      </div>
-
-      <!-- [NOT-33] [NOT-83] Image Management Section -->
-      <div class="input-section">
-        <label class="section-label">Images</label>
-        <!-- [NOT-33] Hidden file input for uploads -->
-        <input type="file" id="image-upload-input" accept="image/*" multiple class="hidden" aria-label="Upload images">
-
-        <!-- [NOT-83] Consolidated Add Image Menu -->
-        <div class="add-image-menu-wrapper">
-          <button id="add-image-menu-button" class="add-image-menu-button" type="button" title="Add images">
-            <svg class="icon icon-sm"><use href="#icon-image"></use></svg>
-            <span>Add Image</span>
-            <svg class="icon icon-xs chevron"><use href="#icon-chevron-down"></use></svg>
-          </button>
-
-          <!-- Dropdown Menu -->
-          <div id="image-menu-dropdown" class="image-menu-dropdown hidden">
-            <button class="image-menu-item" data-action="upload" type="button">
-              <svg class="icon icon-sm"><use href="#icon-upload"></use></svg>
-              <span>Upload from Device</span>
-            </button>
-            <button class="image-menu-item" data-action="capture" type="button">
-              <svg class="icon icon-sm"><use href="#icon-image"></use></svg>
-              <span>Capture from Webpage</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- [NOT-33] Image Preview List (thumbnails) -->
-        <div id="capture-image-preview-list" class="image-preview-list hidden"></div>
       </div>
 
       <button id="save-button" class="save-button">

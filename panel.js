@@ -4008,18 +4008,21 @@ function handleEnterEditMode(noteId, cardElement) {
   noteTextarea.placeholder = 'Add your thoughts, context, or questions...';
   noteTextarea.rows = 4;
 
-  // [NOT-22] Tags input using TagInput component
-  const tagsLabel = document.createElement('label');
-  tagsLabel.className = 'edit-label';
-  tagsLabel.textContent = 'Tags';
+  // [NOT-84] Tags and Images row (no labels, combined layout)
+  const tagsImagesRow = document.createElement('div');
+  tagsImagesRow.className = 'tags-images-row';
 
+  // Tags section
+  const tagsSection = document.createElement('div');
+  tagsSection.className = 'tags-section';
   const tagsContainer = document.createElement('div');
   const editTagInput = new TagInput(tagsContainer, note.tags);
+  tagsSection.appendChild(tagsContainer);
 
   // Store reference to TagInput on the card element for later retrieval
   cardElement._editTagInput = editTagInput;
 
-  // [NOT-33] Image management section for edit mode
+  // [NOT-33] [NOT-84] Image management section for edit mode
   // Initialize editModeImages with note's existing images
   editModeImages = [];
   if (note.images && Array.isArray(note.images)) {
@@ -4033,11 +4036,41 @@ function handleEnterEditMode(noteId, cardElement) {
     }];
   }
 
-  const imagesLabel = document.createElement('label');
-  imagesLabel.className = 'edit-label';
-  imagesLabel.textContent = 'Images';
+  // [NOT-84] Consolidated Add Image Menu (same as capture mode)
+  const addImageMenuWrapper = document.createElement('div');
+  addImageMenuWrapper.className = 'add-image-menu-wrapper';
 
-  // Hidden file input for edit mode
+  const addImageButton = document.createElement('button');
+  addImageButton.className = 'add-image-menu-button';
+  addImageButton.type = 'button';
+  addImageButton.title = 'Add images';
+  addImageButton.id = `edit-add-image-button-${noteId}`;
+
+  const imageIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  imageIcon.classList.add('icon', 'icon-sm');
+  const imageUse = document.createElementNS('http://www.w3.org/1999/xlink', 'xlink:href', 'use');
+  imageUse.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#icon-image');
+  imageIcon.appendChild(imageUse);
+
+  const buttonText = document.createElement('span');
+  buttonText.textContent = 'Add Image';
+
+  const chevronIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  chevronIcon.classList.add('icon', 'icon-xs', 'chevron');
+  const chevronUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  chevronUse.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#icon-chevron-down');
+  chevronIcon.appendChild(chevronUse);
+
+  addImageButton.appendChild(imageIcon);
+  addImageButton.appendChild(buttonText);
+  addImageButton.appendChild(chevronIcon);
+
+  // Dropdown menu
+  const imageMenuDropdown = document.createElement('div');
+  imageMenuDropdown.className = 'image-menu-dropdown hidden';
+  imageMenuDropdown.id = `edit-image-menu-dropdown-${noteId}`;
+
+  // Hidden file input
   const editFileInput = document.createElement('input');
   editFileInput.type = 'file';
   editFileInput.accept = 'image/*';
@@ -4052,14 +4085,11 @@ function handleEnterEditMode(noteId, cardElement) {
     }
   });
 
-  // Add Image Controls for edit mode
-  const editImageControls = document.createElement('div');
-  editImageControls.className = 'add-image-controls';
-
-  const uploadButton = document.createElement('button');
-  uploadButton.className = 'add-image-button';
-  uploadButton.type = 'button';
-  uploadButton.title = 'Upload images from device';
+  // Upload menu item
+  const uploadMenuItem = document.createElement('button');
+  uploadMenuItem.className = 'image-menu-item';
+  uploadMenuItem.type = 'button';
+  uploadMenuItem.setAttribute('data-action', 'upload');
 
   const uploadIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   uploadIcon.classList.add('icon', 'icon-sm');
@@ -4068,23 +4098,23 @@ function handleEnterEditMode(noteId, cardElement) {
   uploadIcon.appendChild(uploadUse);
 
   const uploadSpan = document.createElement('span');
-  uploadSpan.textContent = 'Upload';
+  uploadSpan.textContent = 'Upload from Device';
 
-  uploadButton.appendChild(uploadIcon);
-  uploadButton.appendChild(uploadSpan);
-  uploadButton.addEventListener('click', (e) => {
+  uploadMenuItem.appendChild(uploadIcon);
+  uploadMenuItem.appendChild(uploadSpan);
+  uploadMenuItem.addEventListener('click', (e) => {
     e.preventDefault();
     editFileInput.click();
+    imageMenuDropdown.classList.add('hidden');
+    addImageButton.classList.remove('active');
   });
 
-  editImageControls.appendChild(uploadButton);
-
-  // [NOT-33] Add "Capture from Webpage" button for edit mode
-  const captureButton = document.createElement('button');
-  captureButton.className = 'add-image-button';
-  captureButton.type = 'button';
-  captureButton.id = 'edit-capture-webpage-image-button';
-  captureButton.title = 'Capture image from webpage';
+  // Capture menu item
+  const captureMenuItem = document.createElement('button');
+  captureMenuItem.className = 'image-menu-item';
+  captureMenuItem.type = 'button';
+  captureMenuItem.setAttribute('data-action', 'capture');
+  captureMenuItem.id = 'edit-capture-webpage-image-button';
 
   const captureIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   captureIcon.classList.add('icon', 'icon-sm');
@@ -4095,14 +4125,48 @@ function handleEnterEditMode(noteId, cardElement) {
   const captureSpan = document.createElement('span');
   captureSpan.textContent = 'Capture from Webpage';
 
-  captureButton.appendChild(captureIcon);
-  captureButton.appendChild(captureSpan);
-  captureButton.addEventListener('click', (e) => {
+  captureMenuItem.appendChild(captureIcon);
+  captureMenuItem.appendChild(captureSpan);
+  captureMenuItem.addEventListener('click', (e) => {
     e.preventDefault();
     activateWebCaptureMode('edit-capture-webpage-image-button');
+    imageMenuDropdown.classList.add('hidden');
+    addImageButton.classList.remove('active');
   });
 
-  editImageControls.appendChild(captureButton);
+  imageMenuDropdown.appendChild(uploadMenuItem);
+  imageMenuDropdown.appendChild(captureMenuItem);
+
+  // Toggle dropdown
+  addImageButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isHidden = imageMenuDropdown.classList.contains('hidden');
+    imageMenuDropdown.classList.toggle('hidden');
+    addImageButton.classList.toggle('active', !isHidden);
+  });
+
+  // Close dropdown when clicking outside
+  const closeDropdown = (e) => {
+    if (!addImageMenuWrapper.contains(e.target)) {
+      imageMenuDropdown.classList.add('hidden');
+      addImageButton.classList.remove('active');
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closeDropdown);
+  }, 100);
+
+  // Store cleanup function
+  cardElement._cleanupImageMenu = () => {
+    document.removeEventListener('click', closeDropdown);
+  };
+
+  addImageMenuWrapper.appendChild(addImageButton);
+  addImageMenuWrapper.appendChild(imageMenuDropdown);
+
+  tagsImagesRow.appendChild(tagsSection);
+  tagsImagesRow.appendChild(addImageMenuWrapper);
 
   // Action buttons
   const actionsDiv = document.createElement('div');
@@ -4129,15 +4193,11 @@ function handleEnterEditMode(noteId, cardElement) {
   actionsDiv.appendChild(saveButton);
   actionsDiv.appendChild(cancelButton);
 
-  // Assemble form
+  // [NOT-84] Assemble form with combined tags/images row
   editForm.appendChild(noteLabel);
   editForm.appendChild(noteTextarea);
-  editForm.appendChild(tagsLabel);
-  editForm.appendChild(tagsContainer);
-  // [NOT-33] Add image management UI
-  editForm.appendChild(imagesLabel);
+  editForm.appendChild(tagsImagesRow);
   editForm.appendChild(editFileInput);
-  editForm.appendChild(editImageControls);
   editForm.appendChild(actionsDiv);
 
   // [NOT-33] Render images in the existing thumbnail area with delete buttons
@@ -4333,8 +4393,12 @@ function handleCancelEdit(noteId, cardElement) {
   // Remove edit mode class
   cardElement.classList.remove('editing');
 
-  // [NOT-22] Clean up TagInput reference
+  // [NOT-22] [NOT-84] Clean up TagInput reference and event listeners
   delete cardElement._editTagInput;
+  if (cardElement._cleanupImageMenu) {
+    cardElement._cleanupImageMenu();
+    delete cardElement._cleanupImageMenu;
+  }
 
   // Remove edit form
   const editForm = cardElement.querySelector('.note-edit-form');

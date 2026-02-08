@@ -3646,32 +3646,6 @@ function createNoteCard(note, index = 0) {
     textFull.textContent = note.text;
   }
 
-  // [NOT-26] Validate URL protocol before setting href (prevent XSS)
-  const noteLinkEl = card.querySelector('.note-link');
-  try {
-    const noteUrl = note.url ? note.url.trim() : '';
-    
-    if (!noteUrl) {
-      noteLinkEl.href = '#';
-      noteLinkEl.style.cursor = 'default';
-      noteLinkEl.classList.add('hidden'); // Hide "View Source" if no URL
-    } else {
-      const url = new URL(noteUrl, window.location.origin);
-      const protocol = url.protocol.toLowerCase();
-
-      if (protocol === 'http:' || protocol === 'https:' || protocol === 'chrome-extension:' || protocol === 'data:') {
-        noteLinkEl.href = noteUrl;
-      } else {
-        warn('⚠️  Blocked dangerous protocol in expanded view:', protocol, 'for URL:', noteUrl);
-        noteLinkEl.href = '#';
-        noteLinkEl.style.cursor = 'not-allowed';
-      }
-    }
-  } catch (e) {
-    warn('⚠️  Invalid URL in expanded view:', note.url);
-    noteLinkEl.href = '#';
-    noteLinkEl.style.cursor = 'not-allowed';
-  }
 
   // [NOT-74] Expand/collapse feature removed - notes always show full content
 

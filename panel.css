@@ -1909,23 +1909,6 @@ body {
   white-space: pre-wrap;
 }
 
-.note-metadata {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.note-link {
-  font-size: var(--font-size-sm);
-  color: var(--color-primary);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-.note-link:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
-}
-
 /* [NOT-74] Expanded class removed - notes always show full content */
 
 /* [NOT-20] [NOT-26] Link Styles - Subtle styling for preserved hyperlinks */

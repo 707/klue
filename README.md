@@ -1,209 +1,78 @@
-# Klue - Chrome Extension
+# Klue - Intelligent Chrome Knowledge Clipper
 
-A Chrome extension that lets you capture text from web pages with notes and tags using a clean side panel interface.
+Klue is a high-performance Chrome extension designed for researchers and power users. It goes beyond simple text clipping by providing a local-first, AI-powered knowledge base with semantic search and contextual recall.
 
-## Features
+## 🌟 Key Features
 
-- 📝 **Capture Text** - Highlight text and save it with context
-- 🏷️ **Tags & Notes** - Add your thoughts and organize with tags
-- 🔍 **Search & Filter** - Find your clips quickly
-- 📱 **Side Panel UI** - Never blocks website content
-- 💾 **Local Storage** - All data saved locally in your browser
+- 🧠 **Local RAG Stack** - High-speed semantic search using Transformers.js and Orama, running entirely in your browser.
+- 💬 **AI Assistant** - Built-in chat interface with full history to synthesize and interact with your saved knowledge.
+- 🔍 **Hybrid Search** - Combines traditional keyword matching with vector-based semantic search.
+- 📱 **Contextual Recall** - Automatically resurfaces relevant notes and semantic matches based on the page you are currently visiting.
+- 🖼️ **Rich Media Support** - Capture multiple images per note and view auto-generated "Smart Chips" for YouTube and X (Twitter) links.
+- 🏷️ **Advanced Organization** - Tagging system, "Read Later" queue, and "Starred" favorites.
+- 🛡️ **Privacy First** - 100% local storage (IndexedDB) and local ML processing. No data ever leaves your browser.
 
-## Installation (Development)
+## 🏗️ Technical Architecture
 
-### 1. Load the Extension
+Klue is built as a modern Manifest V3 extension with a focus on performance and reliability.
 
-1. Open Chrome and navigate to `chrome://extensions`
-2. Enable "Developer mode" (toggle in top-right corner)
-3. Click "Load unpacked"
-4. Select the `chrome-clipper` directory
-5. The extension is now installed!
+### Core Stack
+- **Database**: [Dexie.js](https://dexie.org/) (IndexedDB) for robust, high-capacity local storage.
+- **Search Engine**: [Orama](https://oramasearch.com/) for hybrid vector and full-text search.
+- **ML Engine**: [Transformers.js](https://huggingface.co/docs/transformers.js) (all-MiniLM-L6-v2) for generating local embeddings.
+- **UI**: Vanilla ES6+ JavaScript with CSS Variables and a custom component architecture.
+- **Build System**: [esbuild](https://esbuild.github.io/) for bundling ML modules and handling WASM binaries.
 
-### 2. Start Hot Reload (Optional but Recommended)
+### Key Components
+- `background.js`: Orchestrates the capture flow, context menus, and initializes the `VectorService`.
+- `vector-service.js`: Manages the embedding pipeline and Orama index with a sequential `TaskQueue` to ensure stability.
+- `database.js`: Defines the multi-version Dexie schema for notes, chats, and metadata.
+- `panel.js`: The main UI orchestrator handling routing, rendering, and AI interactions.
 
-For easier development, run the file watcher in a terminal:
+## 🚀 Getting Started (Development)
 
+### 1. Prerequisites
+- Node.js (for building dependencies)
+- Python 3 (optional, for the dev-watcher)
+
+### 2. Setup & Build
 ```bash
-cd chrome-clipper
+# Install dependencies
+npm install
+
+# Build the ML bundles (Transformers.js and Orama)
+npm run build
+```
+*Note: The build step is critical as it generates the `dist/` folder containing the necessary WASM binaries and bundled JS.*
+
+### 3. Install the Extension
+1. Open Chrome and navigate to `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the `chrome-clipper` directory.
+
+## 🛠️ Development Workflow
+
+### Hot Reloading
+To watch for file changes during UI development:
+```bash
 python3 dev-watch.py
 ```
 
-This will watch for file changes and notify you when to reload the extension. Keep the `chrome://extensions` page open in a pinned tab for quick reloading.
-
-## Usage
-
-### Capturing Text
-
-**Method 1: Context Menu (Recommended)**
-1. Highlight text on any webpage
-2. Right-click and select "Capture Text"
-3. The side panel opens with the text
-4. Add your notes and tags
-5. Press `Cmd+Enter` or click "Save Clip"
-
-**Method 2: Extension Icon**
-1. Highlight text on any webpage
-2. Click the extension icon in the toolbar
-3. Follow the same steps as above
-
-**Method 3: Keyboard Shortcut**
-1. Highlight text on any webpage
-2. Press `Cmd+Shift+Y` (Mac) or `Ctrl+Shift+Y` (Windows/Linux)
-3. Follow the same steps as above
-
-### Viewing Your Library
-
-1. Click the extension icon without selecting text
-2. Browse your saved clips
-3. Use search to find specific clips
-4. Click on tag pills to filter by tag
-5. Click on a card to expand and see full text
-6. Click the "Context" pill (when available) to automatically filter and expand notes related to the current page
-7. Click the 🗑️ icon to delete a clip
-
-## Development
-
-### Project Structure
-
-```
-chrome-clipper/
-├── manifest.json         # Extension configuration (Manifest V3)
-├── background.js         # Service worker (context menu, capture logic)
-├── panel.html           # Side panel UI structure
-├── panel.css            # Side panel styles
-├── panel.js             # Side panel logic (router, rendering)
-├── icons/               # Extension icons (16, 32, 48, 128px)
-├── dev-watch.py         # Hot reload file watcher
-└── create-icons.py      # Icon generator script
-```
-
-### Tech Stack
-
-- **Manifest V3** - Latest Chrome extension standard
-- **Vanilla JavaScript** - No frameworks, just ES6+
-- **Chrome APIs**: `sidePanel`, `contextMenus`, `storage`, `scripting`
-- **CSS Variables** - Easy theming
-- **System Fonts** - Native look and feel
-
-### Key Technical Decisions
-
-1. **Side Panel API** - Chosen over floating tooltips for reliability (no z-index/overflow issues)
-2. **Service Worker** - Required by Manifest V3 for background tasks
-3. **Local Storage** - Using `chrome.storage.local` for persistence
-4. **No Build Step** - Direct HTML/CSS/JS files for simplicity
-
-### Storage Schema
-
-**Transient Data** (for capture flow):
+### Manual Re-indexing
+If you need to force a full re-index of your library for semantic search, run this in the Side Panel console:
 ```javascript
-{
-  pendingClipData: {
-    text: "Selected text...",
-    url: "https://example.com",
-    metadata: {
-      title: "Page Title",
-      siteName: "Site Name",
-      author: "Author Name",
-      favicon: "https://..."
-    },
-    timestamp: 1234567890
-  }
-}
+window.reindexAllNotes()
 ```
 
-**Persistent Data** (library):
-```javascript
-{
-  savedNotes: [
-    {
-      id: "uuid",
-      text: "Captured text...",
-      userNote: "My thoughts...",
-      tags: ["#research", "#ideas"],
-      url: "https://example.com",
-      metadata: { ... },
-      timestamp: 1234567890
-    }
-  ]
-}
-```
+### Debugging
+- **Background**: Inspect the "Service Worker" from `chrome://extensions`.
+- **UI**: Right-click in the Side Panel and select "Inspect".
 
-### Testing Checklist
+## 📅 Roadmap (2026)
+- [ ] **LLM Integration**: Connect to local LLMs (via WebGPU) for fully offline synthesis.
+- [ ] **Enhanced Metadata**: Automated scraping for more domains (GitHub, LinkedIn, ResearchGate).
+- [ ] **Export Options**: One-click export to Markdown/Obsidian.
+- [ ] **Dark Mode**: System-aware theming.
 
-- [ ] Test on multiple websites (Google, Medium, Wikipedia, GitHub)
-- [ ] Test with very long text selections (1000+ words)
-- [ ] Test with special characters in notes/tags
-- [ ] Test with empty tags field
-- [ ] Test deleting last note (should show empty state)
-- [ ] Test search with no matches
-- [ ] Test in multiple tabs simultaneously
-- [ ] Test keyboard shortcuts
-- [ ] Test without internet connection (should still work)
-
-## Debugging
-
-### View Console Logs
-
-**Background Service Worker:**
-1. Go to `chrome://extensions`
-2. Find "Klue"
-3. Click "service worker" link under "Inspect views"
-
-**Side Panel:**
-1. Open the side panel
-2. Right-click anywhere in the panel
-3. Select "Inspect"
-
-**Webpage Context:**
-1. Open DevTools on any webpage (F12)
-2. Check Console for any errors
-
-### Common Issues
-
-**Extension won't load:**
-- Check that all files are present
-- Validate `manifest.json` syntax
-- Check for JavaScript errors in service worker console
-
-**Context menu not appearing:**
-- Make sure text is selected
-- Check background service worker console for errors
-- Try reloading the extension
-
-**Side panel won't open:**
-- Check that you're using Chrome (not Chromium or other browsers)
-- Verify `sidePanel` permission in manifest
-- Check background service worker for errors
-
-**Data not persisting:**
-- Check `chrome.storage.local` in DevTools (Application tab)
-- Verify storage permissions in manifest
-- Check for storage quota errors in console
-
-## Roadmap
-
-### Current Version: 1.0 (MVP)
-- ✅ Text capture with metadata
-- ✅ Notes and tags
-- ✅ Search and filter
-- ✅ Delete functionality
-- ✅ Side panel UI
-
-### Future Enhancements
-- [ ] Edit saved clips
-- [ ] Export to JSON/Markdown
-- [ ] Import from other tools
-- [ ] Text highlighting with fragments
-- [ ] Folders/categories
-- [ ] Cloud sync (optional)
-- [ ] Dark mode
-- [ ] Keyboard navigation
-
-## License
-
+## 📄 License
 MIT
-
-## Support
-
-For issues or questions, please open an issue on GitHub.

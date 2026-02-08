@@ -2224,22 +2224,21 @@ async function renderCaptureMode(clipData = {}) {
   if (contextPill) contextPill.classList.add('hidden');
   if (expandButton) expandButton.classList.add('hidden');
 
-  // [NOT-16] [NOT-27] Hide or show source bar based on content type
-  const sourceBar = document.querySelector('.source-bar');
-  const textPreviewSection = document.querySelector('.preview-section');
-  const previewLabel = textPreviewSection.querySelector('.section-label');
+  // [NOT-16] [NOT-27] [NOT-83] Hide or show source card based on content type
+  const sourceCard = document.querySelector('.source-card');
+  const sourceCardBody = document.querySelector('.source-card-body');
+  const previewLabel = sourceCardBody.querySelector('.source-card-label');
 
   if (clipData.url && clipData.metadata) {
     // Has URL and metadata - show source info
-    sourceBar.style.display = '';
-    textPreviewSection.style.display = '';
+    sourceCard.style.display = '';
 
     document.getElementById('capture-favicon').src = clipData.metadata.favicon;
     document.getElementById('capture-site-name').textContent = clipData.metadata.siteName;
     document.getElementById('capture-url').textContent = clipData.url;
 
-    // [NOT-58] Render dynamic source bar based on flexible_metadata.type
-    renderDynamicSourceBar(clipData, sourceBar);
+    // [NOT-58] [NOT-83] Render dynamic source bar based on flexible_metadata.type
+    renderDynamicSourceBar(clipData, document.querySelector('.source-card-header'));
 
     // [NOT-27] Check if this is a bookmark (no text/html) or text selection
     if (!clipData.text && !clipData.html) {
@@ -2285,9 +2284,8 @@ async function renderCaptureMode(clipData = {}) {
       }
     }
   } else {
-    // Manual note mode - hide source and preview
-    sourceBar.style.display = 'none';
-    textPreviewSection.style.display = 'none';
+    // Manual note mode - hide source card
+    sourceCard.style.display = 'none';
   }
 
   // [NOT-16] Clear and auto-focus notes textarea

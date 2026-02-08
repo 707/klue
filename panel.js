@@ -980,7 +980,7 @@ async function renderStackMenu() {
 function getStackFilteredNotes() {
   let filtered = [...allNotes];
 
-  // [NOT-78] Apply context filter (page URL filter) with fallback logic
+  // [NOT-92] Apply context filter (page URL filter) - strict filtering, no fallback
   if (filterState.contextFilter) {
     const notesOnPage = allNotes.filter(note => {
       if (!note.url) return false;
@@ -999,13 +999,9 @@ function getStackFilteredNotes() {
       }
     });
 
-    // [NOT-78] Fallback: If no notes on this page, show all notes instead of empty state
-    if (notesOnPage.length === 0) {
-      log('[NOT-78] No notes on this page, falling back to show all notes');
-      filtered = [...allNotes]; // Use all notes as base set
-    } else {
-      filtered = notesOnPage; // Use page-specific notes as base set
-    }
+    // [NOT-92] Strict filtering - if 0 notes on page, return 0 (no fallback to all notes)
+    filtered = notesOnPage;
+    log('[NOT-92] Context filter active, found', notesOnPage.length, 'notes on this page');
   }
 
   // Apply tag filters (case-insensitive, normalize # prefix)
@@ -5182,22 +5178,56 @@ async function renderAIChatMode() {
           }
         }
 
-        // [NOT-68] Add current page context with actual page content if active
+        // [NOT-92] Add current page context with strict URL matching
         if (filterState.contextFilter) {
           try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tab?.url && tab?.id) {
-              contextParts.push(`\n\nCurrent Page Context:\n- Title: ${tab.title || 'Unknown'}\n- URL: ${tab.url}`);
+              // [NOT-92] Strict URL matching - only inject if current tab matches filter
+              const currentUrl = tab.url;
+              let isContextActive = false;
 
-              // [NOT-68] Get actual page text content (truncated to 8k chars)
-              const pageText = await getPageTextContent(tab.id);
-              if (pageText) {
-                contextParts.push(`\n- Page Content:\n${pageText}`);
-                log('[NOT-68] Injected page content:', pageText.length, 'chars');
+              // Check for exact URL match or hostname match
+              if (filterState.contextFilter === currentUrl) {
+                isContextActive = true;
+              } else if (currentUrl.includes('://')) {
+                // Try hostname comparison
+                try {
+                  const currentHostname = new URL(currentUrl).hostname;
+                  isContextActive = (filterState.contextFilter === currentHostname);
+                } catch (e) {
+                  // Invalid URL format, no match
+                  isContextActive = false;
+                }
+              }
+
+              // [NOT-92] Only inject context if URL matches (prevents stale state leak)
+              if (isContextActive) {
+                contextParts.push(`\n\nCurrent Page Context:\n- Title: ${tab.title || 'Unknown'}\n- URL: ${tab.url}`);
+
+                // [NOT-92] Get actual page text content (truncated to 8k chars)
+                try {
+                  const pageText = await getPageTextContent(tab.id);
+                  if (pageText) {
+                    contextParts.push(`\n- Page Content:\n${pageText}`);
+                    log('[NOT-92] Injected page content:', pageText.length, 'chars');
+                  } else {
+                    // [NOT-92] Explicit fallback if content extraction returns empty
+                    contextParts.push(`\n- Page Content: (Page content unavailable - restricted or empty)`);
+                    log('[NOT-92] Page content unavailable for:', tab.url);
+                  }
+                } catch (contentError) {
+                  // [NOT-92] Robust error handling for content extraction
+                  contextParts.push(`\n- Page Content: (Page content unavailable - restricted or empty)`);
+                  warn('[NOT-92] Could not extract page content:', contentError);
+                }
+              } else {
+                // [NOT-92] Context filter is stale - don't inject
+                log('[NOT-92] Context filter mismatch - not injecting. Filter:', filterState.contextFilter, 'Current:', currentUrl);
               }
             }
           } catch (e) {
-            warn('[NOT-68] Could not get current page info:', e);
+            warn('[NOT-92] Could not get current page info:', e);
           }
         }
 

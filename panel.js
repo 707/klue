@@ -980,7 +980,7 @@ async function renderStackMenu() {
 function getStackFilteredNotes() {
   let filtered = [...allNotes];
 
-  // [NOT-92] Apply context filter (page URL filter) - strict filtering, no fallback
+  // [NOT-92] Apply context filter (page URL filter) with fallback
   if (filterState.contextFilter) {
     const notesOnPage = allNotes.filter(note => {
       if (!note.url) return false;
@@ -999,9 +999,13 @@ function getStackFilteredNotes() {
       }
     });
 
-    // [NOT-92] Strict filtering - if 0 notes on page, return 0 (no fallback to all notes)
-    filtered = notesOnPage;
-    log('[NOT-92] Context filter active, found', notesOnPage.length, 'notes on this page');
+    // [NOT-92] Fallback: If no notes on this page, show all notes instead of empty state
+    if (notesOnPage.length === 0) {
+      log('[NOT-92] No notes on this page, falling back to show all notes');
+      filtered = [...allNotes]; // Use all notes as base set
+    } else {
+      filtered = notesOnPage; // Use page-specific notes as base set
+    }
   }
 
   // Apply tag filters (case-insensitive, normalize # prefix)

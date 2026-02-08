@@ -2232,7 +2232,7 @@ async function renderCaptureMode(clipData = {}) {
   if (clipData.url && clipData.metadata) {
     // Has URL and metadata - show source info
     if (sourceCard) {
-      sourceCard.style.display = '';
+      sourceCard.style.display = 'block';
     }
 
     const favicon = document.getElementById('capture-favicon');

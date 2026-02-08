@@ -781,8 +781,10 @@ function getNotesForUrl(url) {
 }
 
 /**
- * [NOT-69] Get context-aware tags for ghost chips
- * Prioritizes tags from notes on the current page, fills remaining slots with global popular tags
+ * [NOT-69] [NOT-77] Get context-aware tags for ghost chips
+ * Priority 1: Tags from notes on the current page
+ * Priority 2: Semantically related tags from vector search
+ * Priority 3: Global popular tags as fallback
  * @param {string} url - The current page URL
  * @returns {Promise<string[]>} Array of suggested tags (max 3)
  */
@@ -813,7 +815,43 @@ async function getContextAwareTags(url) {
     contextTags.push(...sortedContextTags);
   }
 
-  // Priority 2: If we have fewer than 3 tags, fill with global popular tags
+  // [NOT-77] Priority 2: If we have fewer than 3 tags, use semantic search for related tags
+  if (contextTags.length < 3) {
+    try {
+      // Get current page metadata
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.title && tab?.id) {
+        // Attempt to get page text content (best effort, non-blocking)
+        let pageText = '';
+        try {
+          pageText = await getPageTextContent(tab.id) || '';
+        } catch (err) {
+          warn('[NOT-77] Could not get page text for semantic search:', err);
+        }
+
+        // Call semantic search with page metadata
+        const semanticTags = await fetchLocalTagSuggestions({
+          metadata: { title: tab.title },
+          text: pageText
+        });
+
+        // Append unique semantic tags
+        semanticTags.forEach(tag => {
+          if (!activeTags.has(tag) && !contextTags.includes(tag) && contextTags.length < 3) {
+            contextTags.push(tag);
+          }
+        });
+
+        if (semanticTags.length > 0) {
+          log(`[NOT-77] Added ${semanticTags.filter(tag => !activeTags.has(tag) && !contextTags.includes(tag)).length} semantic tag suggestions`);
+        }
+      }
+    } catch (err) {
+      warn('[NOT-77] Error fetching semantic tags (non-fatal):', err);
+    }
+  }
+
+  // Priority 3: If we still have fewer than 3 tags, fill with global popular tags
   if (contextTags.length < 3) {
     const allTags = await getAllTags();
     const globalTags = allTags

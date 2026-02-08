@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Knowledge Clipper</title>
+  <title>Klue</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="panel.css">
 </head>
@@ -112,14 +112,14 @@
         <rect x="14" y="14" width="7" height="7"></rect>
         <rect x="3" y="14" width="7" height="7"></rect>
       </symbol>
-      <!-- [NOT-34] Sparkle Icon (AI) -->
-      <symbol id="icon-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"></path>
+      <!-- [NOT-34] Chat Icon (AI) -->
+      <symbol id="icon-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       </symbol>
-      <!-- [NOT-34] Settings Icon (Gear) -->
+      <!-- [NOT-34] Settings Icon (Gears) -->
       <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"></circle>
-        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </symbol>
     </svg>
   </div>
@@ -127,7 +127,7 @@
   <div id="app">
     <!-- Menu Bar -->
     <nav class="menu-bar">
-      <!-- [NOT-34] Left Navigation: Create + Library -->
+      <!-- [NOT-34] Left Navigation: Create + Library + AI-->
       <div class="menu-left">
         <button id="create-note-button" class="menu-action-button" title="Create a new note" aria-label="Create a new note">
           <svg class="icon icon-sm"><use href="#icon-plus"></use></svg>
@@ -135,15 +135,16 @@
         <button id="library-button" class="menu-action-button" title="View your note library" aria-label="View your note library">
           <svg class="icon icon-sm"><use href="#icon-grid"></use></svg>
         </button>
+        <button id="ai-button" class="menu-action-button" title="Open AI assistant" aria-label="Open AI assistant">
+          <svg class="icon icon-sm"><use href="#icon-chat"></use></svg>
+        </button>
       </div>
 
       <!-- [NOT-68] Context pill removed - replaced by Stack Context Bar -->
 
-      <!-- [NOT-34] Right Navigation: AI + Settings -->
+      <!-- [NOT-34] Right Navigation: Settings -->
       <div class="menu-right">
-        <button id="ai-button" class="menu-action-button" title="Open AI assistant" aria-label="Open AI assistant">
-          <svg class="icon icon-sm"><use href="#icon-sparkle"></use></svg>
-        </button>
+        <div class="brand-logo">Klue</div>
         <button id="settings-button" class="menu-action-button" title="Open settings" aria-label="Open settings">
           <svg class="icon icon-sm"><use href="#icon-settings"></use></svg>
         </button>
@@ -265,9 +266,9 @@
       </div>
 
       <!-- [NOT-58] Pulse Pill - AI Metadata Enhancement -->
-      <div class="input-section">
+      <div class="input-section hidden">
         <button id="pulse-pill-button" class="pulse-pill" type="button" data-state="idle" title="Use AI to suggest tags and enrich metadata">
-          <svg class="pulse-pill-icon icon icon-sm"><use href="#icon-sparkle"></use></svg>
+          <svg class="pulse-pill-icon icon icon-sm"><use href="#icon-chat"></use></svg>
           <span class="pulse-pill-text">Analyze Page</span>
           <svg class="pulse-pill-check icon icon-sm hidden"><use href="#icon-check"></use></svg>
         </button>
@@ -344,29 +345,13 @@
 
       <div id="notes-list" class="notes-list">
         <!-- Empty state -->
-        <!-- [NOT-60] Cold Start UX with Onboarding Chips -->
         <div id="empty-state" class="empty-state">
           <div class="empty-icon">
             <svg class="icon icon-xxl"><use href="#icon-file-text"></use></svg>
           </div>
-          <h2>Your brain is empty</h2>
-          <p>Start capturing knowledge, or ask the assistant to help you:</p>
-
-          <!-- [NOT-60] Onboarding Chips -->
-          <div class="onboarding-chips">
-            <button class="onboarding-chip" data-prompt="Help me organize my research notes">
-              <svg class="icon icon-sm"><use href="#icon-sparkle"></use></svg>
-              <span>Organize notes</span>
-            </button>
-            <button class="onboarding-chip" data-prompt="Summarize the key points from my reading">
-              <svg class="icon icon-sm"><use href="#icon-sparkle"></use></svg>
-              <span>Draft summary</span>
-            </button>
-            <button class="onboarding-chip" data-prompt="Find connections between my ideas">
-              <svg class="icon icon-sm"><use href="#icon-sparkle"></use></svg>
-              <span>Find connections</span>
-            </button>
-          </div>
+          <h2>Welcome to Klue.</h2>
+          <p>Start capturing knowledge by adding a note, or toggle <strong>This Page</strong> to surface related insights from your current context.</p>
+          <p class="empty-prompt">What would you like to know about this page?</p>
         </div>
 
         <!-- Search empty state -->
@@ -418,7 +403,7 @@
         <!-- Empty state -->
         <div id="chat-empty-state" class="chat-empty-state">
           <div class="empty-icon">
-            <svg class="icon icon-xxl"><use href="#icon-sparkle"></use></svg>
+            <svg class="icon icon-xxl"><use href="#icon-chat"></use></svg>
           </div>
           <h2>AI Assistant</h2>
           <p>Ask me anything about your notes, get summaries, or have a conversation.</p>

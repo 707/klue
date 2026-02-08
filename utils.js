@@ -1,4 +1,4 @@
-// [NOT-57] Shared utility functions for Knowledge Clipper
+// [NOT-57] Shared utility functions for Klue
 // Used by both background.js and panel.js
 
 /**

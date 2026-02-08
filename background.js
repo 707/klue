@@ -1,10 +1,10 @@
-// Background Service Worker for Knowledge Clipper
+// Background Service Worker for Klue
 // Handles context menu, text capture, and side panel orchestration
 
 // [NOT-38] Import VectorService for semantic search
 import { vectorService } from './vector-service.js';
 
-console.log('🚀 Knowledge Clipper background service worker started');
+console.log('🚀 Klue background service worker started');
 
 // [NOT-38] Initialize VectorService on startup
 console.log('🧠 [NOT-38] Initializing VectorService...');

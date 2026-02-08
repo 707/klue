@@ -48,7 +48,7 @@ def print_reload_instructions():
     print("=" * 50)
     print("\n📌 To reload your extension:")
     print("   1. Open chrome://extensions")
-    print("   2. Click the reload icon (🔄) for 'Knowledge Clipper'")
+    print("   2. Click the reload icon (🔄) for 'Klue'")
     print("\n💡 TIP: Keep the extensions page open in a pinned tab")
     print("   for quick reloading during development")
     print("\n" + "-" * 50 + "\n")

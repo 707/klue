@@ -1,4 +1,4 @@
-# Knowledge Clipper - Chrome Extension
+# Klue - Chrome Extension
 
 A Chrome extension that lets you capture text from web pages with notes and tags using a clean side panel interface.
 
@@ -147,7 +147,7 @@ chrome-clipper/
 
 **Background Service Worker:**
 1. Go to `chrome://extensions`
-2. Find "Knowledge Clipper"
+2. Find "Klue"
 3. Click "service worker" link under "Inspect views"
 
 **Side Panel:**

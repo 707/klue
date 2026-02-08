@@ -1,8 +1,8 @@
-# Knowledge Clipper Design System
+# Klue Design System
 ## Inspired by Linear.app
 
 ### Overview
-This document outlines the design system for the Knowledge Clipper Chrome extension, inspired by the clean, structured aesthetic of Linear.app.
+This document outlines the design system for the Klue Chrome extension, inspired by the clean, structured aesthetic of Linear.app.
 
 ## Color Palette
 

@@ -7,7 +7,7 @@ def create_icon(size, filename):
     img = Image.new('RGB', (size, size), color='#4A90E2')
     draw = ImageDraw.Draw(img)
 
-    # Draw a simple "K" for Knowledge Clipper
+    # Draw a simple "K" for Klue
     # Add a white rounded rectangle
     margin = size // 6
     draw.rounded_rectangle(

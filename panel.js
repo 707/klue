@@ -1,4 +1,4 @@
-// Knowledge Clipper - Side Panel Logic
+// Klue - Side Panel Logic
 
 /**
  * PANEL.JS - Main Orchestrator
@@ -2638,7 +2638,7 @@ async function handleSaveClip(clipData = {}) {
       url: clipData.url || '',
       metadata: clipData.metadata || {
         title: 'Manual Note',
-        siteName: 'Knowledge Clipper',
+        siteName: 'Klue',
         favicon: 'icons/icon32.png'
       },
       // [NOT-59] Extract flexible_metadata from clipData.metadata if present
@@ -2967,27 +2967,6 @@ function setupLibraryEventListeners() {
   if (sendAssistantButton) {
     sendAssistantButton.addEventListener('click', handleSendAssistantMessage);
   }
-
-  // [NOT-60] Onboarding Chips - Auto-fill Assistant Bar
-  const onboardingChips = document.querySelectorAll('.onboarding-chip');
-  onboardingChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      const prompt = chip.dataset.prompt;
-      if (prompt && assistantInput) {
-        assistantInput.value = prompt;
-        assistantInput.focus();
-
-        // Trigger input event to enable send button and resize textarea
-        assistantInput.dispatchEvent(new Event('input'));
-
-        // Scroll to assistant bar
-        const assistantBar = document.querySelector('.assistant-bar');
-        if (assistantBar) {
-          assistantBar.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-      }
-    });
-  });
 
   // Filter input focus/blur
   filterInput.addEventListener('focus', () => {
@@ -3342,6 +3321,7 @@ function filterAndRenderNotes() {
 
 function updatePlaceholder() {
   const filterInput = document.getElementById('filter-input');
+  const assistantInput = document.getElementById('assistant-input');
   if (!filterInput) return;
 
   const activeFiltersCount = (filterState.sort !== 'newest' ? 1 : 0) + filterState.tags.length + (filterState.readLater ? 1 : 0) + (filterState.starred ? 1 : 0);
@@ -3350,6 +3330,15 @@ function updatePlaceholder() {
     filterInput.placeholder = `Search, filter, or sort... (${activeFiltersCount} filter${activeFiltersCount === 1 ? '' : 's'} active)`;
   } else {
     filterInput.placeholder = 'Search, filter, or sort...';
+  }
+
+  // [Option C] Dynamic Assistant Placeholder
+  if (assistantInput) {
+    if (allNotes.length === 0) {
+      assistantInput.placeholder = 'Ask about this page...';
+    } else {
+      assistantInput.placeholder = 'Ask about your notes...';
+    }
   }
 }
 

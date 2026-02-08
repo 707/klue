@@ -7,13 +7,13 @@
 **New Header Structure:**
 ```
 ┌──────────────────────────────────────┐
-│ [📘] Knowledge Clipper          [←]  │ ← Always visible
+│ [📘] Klue          [←]  │ ← Always visible
 ├──────────────────────────────────────┤
 ```
 
 **Features:**
 - Logo displays extension icon (32px)
-- Title "Knowledge Clipper" beside logo
+- Title "Klue" beside logo
 - Back button only visible in Capture mode
 - Back button navigates from Capture to Library without closing panel
 - Sticky positioning at top of panel
@@ -127,7 +127,7 @@ let filterState = {
 
 **To Test:**
 1. Go to `chrome://extensions`
-2. Click reload icon for Knowledge Clipper
+2. Click reload icon for Klue
 3. Test all the new features above
 
 **Known Issues:**

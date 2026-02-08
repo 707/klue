@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Knowledge Clipper",
+  "name": "Klue",
   "version": "1.0.0",
   "description": "Capture text from web pages with notes and tags using a side panel",
   "permissions": [
@@ -25,7 +25,7 @@
     "default_path": "panel.html"
   },
   "action": {
-    "default_title": "Open Knowledge Clipper",
+    "default_title": "Open Klue",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

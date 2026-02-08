@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the local RAG (Retrieval-Augmented Generation) infrastructure implemented for semantic search in Knowledge Clipper.
+This document describes the local RAG (Retrieval-Augmented Generation) infrastructure implemented for semantic search in Klue.
 
 ## Architecture
 

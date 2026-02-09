@@ -1,0 +1,15 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Build outputs are committed to support extension loading
+# chrome-clipper/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+.git-original-backup/

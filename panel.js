@@ -669,6 +669,20 @@ async function renderCaptureMode(clipData = {}) {
     sourceCard.style.display = 'none';
   }
 
+  // [NOT-16] Reset Save Button state
+  const saveButton = document.getElementById('save-button');
+  if (saveButton) {
+    saveButton.disabled = false;
+    saveButton.classList.remove('success');
+
+    const buttonText = saveButton.querySelector('.button-text');
+    if (buttonText) buttonText.textContent = 'Save Clip';
+
+    // Reset icon to arrow-right
+    const buttonIcon = saveButton.querySelector('.button-icon use');
+    if (buttonIcon) buttonIcon.setAttribute('href', '#icon-arrow-right');
+  }
+
   // [NOT-16] Clear and auto-focus notes textarea
   const notesInput = document.getElementById('capture-notes');
   notesInput.value = ''; // Clear previous content
@@ -3096,61 +3110,7 @@ function handleDownloadImage(imageData) {
 // @AI - Chat, Contextual Recall & Synthesis
 // =============================================================================
 
-/**
- * [NOT-60] Assemble RAG context from filtered notes (the "Stack")
- * Gathers text from all notes currently in the context/filter
- * @returns {string} - Formatted context string for AI
- */
-function assembleRAGContext() {
-  if (getState().filteredNotes.length === 0) {
-    return '';
-  }
 
-  // Limit context to prevent token overflow
-  const maxNotes = 10; // Limit to top 10 notes
-  const notesToInclude = getState().filteredNotes.slice(0, maxNotes);
-
-  // Format each note as a context block
-  const contextBlocks = notesToInclude.map((note, index) => {
-    const parts = [];
-
-    // Add source info
-    parts.push(`[Note ${index + 1}]`);
-    if (note.metadata?.title) {
-      parts.push(`Title: ${note.metadata.title}`);
-    }
-    if (note.metadata?.siteName) {
-      parts.push(`Source: ${note.metadata.siteName}`);
-    }
-
-    // Add note content
-    if (note.text) {
-      // Strip HTML tags and limit length
-      const textContent = note.text.replace(/<[^>]*>/g, '').trim();
-      const maxLength = 500; // Limit each note to 500 chars
-      const truncated = textContent.length > maxLength
-        ? textContent.substring(0, maxLength) + '...'
-        : textContent;
-      parts.push(`Content: ${truncated}`);
-    }
-
-    // Add user notes if present
-    if (note.userNote) {
-      parts.push(`My Note: ${note.userNote}`);
-    }
-
-    // Add tags if present
-    if (note.tags && note.tags.length > 0) {
-      parts.push(`Tags: ${note.tags.join(', ')}`);
-    }
-
-    return parts.join('\n');
-  });
-
-  // Assemble final context
-  const contextHeader = `I have ${getState().filteredNotes.length} note${getState().filteredNotes.length === 1 ? '' : 's'} in my context${getState().filteredNotes.length > maxNotes ? ` (showing first ${maxNotes})` : ''}:\n\n`;
-  return contextHeader + contextBlocks.join('\n\n---\n\n');
-}
 
 /**
  * [NOT-60] Handle sending message from Assistant Bar
@@ -3171,38 +3131,13 @@ async function handleSendAssistantMessage() {
     assistantInput.disabled = true;
     sendButton.disabled = true;
 
-    // Assemble RAG context from filtered notes
-    const ragContext = assembleRAGContext();
-
-    // Build the full message with context
-    let fullMessage = userMessage;
-    if (ragContext) {
-      fullMessage = `${ragContext}\n\nQuestion: ${userMessage}`;
-    }
-
     // Clear the assistant input
     assistantInput.value = '';
     assistantInput.style.height = 'auto';
 
     // Navigate to AI Chat mode and send the message
-    await renderAIChatMode();
-
-    // Get chat elements
-    const chatInput = document.getElementById('chat-input');
-    const sendChatButton = document.getElementById('send-chat-button');
-
-    if (chatInput && sendChatButton) {
-      // Set the message in the chat input
-      chatInput.value = fullMessage;
-
-      // Trigger input event to enable send button and resize textarea
-      chatInput.dispatchEvent(new Event('input'));
-
-      // Auto-send the message
-      setTimeout(() => {
-        sendChatButton.click();
-      }, 100);
-    }
+    // [NOT-46] Pass user message directly - context is handled by ai-chat.js
+    await renderAIChatMode(userMessage);
 
   } catch (error) {
     error('[NOT-60] Failed to send assistant message:', error);
@@ -3338,7 +3273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     libraryButton.addEventListener('click', renderLibraryMode);
   }
   if (aiButton) {
-    aiButton.addEventListener('click', renderAIChatMode);
+    aiButton.addEventListener('click', () => renderAIChatMode());
   }
   if (settingsButton) {
     settingsButton.addEventListener('click', renderSettingsMode);
@@ -3366,11 +3301,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   log('✅ Capture module initialized');
 
-  // [NOT-31] Listen for tab changes to refresh contextual recall pill
+  // [NOT-31] Listen for tab changes to refresh Stack Context Bars
   // [NOT-69] Also update Stack Context Bars to refresh counts and ghost chips
   chrome.tabs.onActivated.addListener(async () => {
     if (getState().currentMode === 'library') {
-      await checkContextualRecall();
       await updateContextBars();
     }
   });
@@ -3379,7 +3313,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (changeInfo.url && getState().currentMode === 'library') {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (activeTab && activeTab.id === tabId) {
-        await checkContextualRecall();
         await updateContextBars();
       }
     }

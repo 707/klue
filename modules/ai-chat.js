@@ -2,23 +2,30 @@
 // Handles AI chat interface, message rendering, and context-aware conversations
 
 import { getState, setState, setMode } from './state.js';
-import { navigateToView, getStackFilteredNotes } from './navigation.js';
+import { navigateToView, getStackFilteredNotes, getPageTextContent } from './navigation.js';
 
-// Module-level logging
-let log, warn, error;
+// Module-level logging (defaults to console for safety)
+let log = console.log;
+let warn = console.warn;
+let error = console.error;
 
 // Initialize module with dependencies
 export function initAIChat(deps) {
-    log = deps.log;
-    warn = deps.warn;
-    error = deps.error;
+    if (deps.log) log = deps.log;
+    if (deps.warn) warn = deps.warn;
+    if (deps.error) error = deps.error;
 }
 
 /**
  * [NOT-46] AI Chat Mode - Renders the chat interface
  * Loads chat history, initializes AI harness, and sets up event listeners
  */
-export async function renderAIChatMode() {
+export async function renderAIChatMode(initialMessage = '') {
+    // Ensure initialMessage is a string (sanitization against event objects)
+    if (typeof initialMessage !== 'string') {
+        initialMessage = '';
+    }
+
     setMode('ai-chat');
     navigateToView('ai-chat-mode');
 
@@ -174,10 +181,18 @@ export async function renderAIChatMode() {
                 }
 
                 // Add page context if active
+                // Add page context if active
                 if (getState().filterState.contextFilter) {
-                    const pageContent = await getPageTextContent();
-                    if (pageContent) {
-                        contextParts.push(`\\nCurrent page content:\\n${pageContent.substring(0, 500)}${pageContent.length > 500 ? '...' : ''}`);
+                    try {
+                        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                        if (tab && tab.id) {
+                            const pageContent = await getPageTextContent(tab.id);
+                            if (pageContent) {
+                                contextParts.push(`\\nCurrent page content:\\n${pageContent.substring(0, 500)}${pageContent.length > 500 ? '...' : ''}`);
+                            }
+                        }
+                    } catch (e) {
+                        warn('[NOT-46] Failed to get page content for context:', e);
                     }
                 }
 
@@ -191,15 +206,23 @@ export async function renderAIChatMode() {
             const fullPrompt = contextPrompt + text;
             let fullResponse = '';
 
-            await window.aiHarness.chat(
+            await window.aiHarness.sendMessage(
                 fullPrompt,
-                {
-                    onChunk: (chunk) => {
-                        fullResponse += chunk;
-                        aiContentDiv.textContent = fullResponse;
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                    },
-                    modelId: preferredModel
+                { modelId: preferredModel },
+                // onChunk
+                (chunk) => {
+                    fullResponse += chunk;
+                    aiContentDiv.textContent = fullResponse;
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                },
+                // onComplete
+                () => {
+                    log('[NOT-46] AI response stream complete');
+                },
+                // onError
+                (err) => {
+                    error('[NOT-46] AI response stream error:', err);
+                    throw err; // Propagate to catch block
                 }
             );
 
@@ -253,10 +276,15 @@ export async function renderAIChatMode() {
         }
     };
 
-    // Auto-resize textarea
+    // Auto-resize textarea and enable/disable send button
     chatInput.oninput = () => {
         chatInput.style.height = 'auto';
         chatInput.style.height = chatInput.scrollHeight + 'px';
+
+        // Enable send button if there is text
+        if (sendButton) {
+            sendButton.disabled = !chatInput.value.trim();
+        }
     };
 
     // Load chat on mount
@@ -264,18 +292,16 @@ export async function renderAIChatMode() {
 
     // Focus input
     chatInput.focus();
-}
 
-// Helper function to get page text content
-async function getPageTextContent() {
-    try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab?.id) return null;
-
-        const result = await chrome.tabs.sendMessage(tab.id, { action: 'GET_PAGE_TEXT' });
-        return result?.text || null;
-    } catch (err) {
-        warn('Failed to get page text:', err);
-        return null;
+    // [NOT-46] Handle initial message from assistant bar
+    if (initialMessage) {
+        chatInput.value = initialMessage;
+        chatInput.dispatchEvent(new Event('input')); // Trigger resize
+        // Small delay to ensure UI updates before sending
+        setTimeout(() => {
+            sendButton.click();
+        }, 100);
     }
 }
+
+// [NOT-46] Helper function to get page text content - removed in favor of shared one from navigation.js
